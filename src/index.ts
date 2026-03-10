@@ -13,6 +13,13 @@ import {
   appendTextToNote,
   addChecklist,
   applyFormat,
+  moveNote,
+  renameFolder,
+  listFolderContents,
+  searchNotes,
+  addLink,
+  toggleChecklistItem,
+  removeChecklistItem,
 } from "./notes.js";
 
 const server = new McpServer(
@@ -101,6 +108,97 @@ server.registerTool(
   },
   async (args) => {
     const note = await applyFormat({ id: args.id, mode: args.mode });
+    return { content: [{ type: "text", text: JSON.stringify(note) }] };
+  }
+);
+
+server.registerTool(
+  "notes.move",
+  {
+    title: "Move Note",
+    description: "Move a note to another folder by folderId or path.",
+    inputSchema: z.object({ id: z.string(), toFolderId: z.string().optional(), toPath: z.string().optional() }).refine(v => !!(v.toFolderId || v.toPath), { message: 'Provide toFolderId or toPath' }),
+  },
+  async (args) => {
+    const note = await moveNote({ id: args.id, toFolderId: args.toFolderId, toPath: args.toPath });
+    return { content: [{ type: "text", text: JSON.stringify(note) }] };
+  }
+);
+
+server.registerTool(
+  "folders.rename",
+  {
+    title: "Rename Folder",
+    description: "Rename a folder at nested path.",
+    inputSchema: z.object({ path: z.string(), newName: z.string() }),
+  },
+  async (args) => {
+    const folder = await renameFolder({ path: args.path, newName: args.newName });
+    return { content: [{ type: "text", text: JSON.stringify(folder) }] };
+  }
+);
+
+server.registerTool(
+  "folders.contents",
+  {
+    title: "Folder Contents",
+    description: "List notes and subfolders for a folder path.",
+    inputSchema: z.object({ path: z.string(), recursive: z.boolean().optional(), limit: z.number().int().positive().max(2000).optional() }),
+  },
+  async (args) => {
+    const out = await listFolderContents({ path: args.path, recursive: args.recursive, limit: args.limit });
+    return { content: [{ type: "text", text: JSON.stringify(out) }] };
+  }
+);
+
+server.registerTool(
+  "notes.search",
+  {
+    title: "Search Notes",
+    description: "Search notes by name (fast) or body (slower).",
+    inputSchema: z.object({ query: z.string(), inBody: z.boolean().optional(), limit: z.number().int().positive().max(500).optional() }),
+  },
+  async (args) => {
+    const results = await searchNotes({ query: args.query, inBody: args.inBody, limit: args.limit });
+    return { content: [{ type: "text", text: JSON.stringify(results) }] };
+  }
+);
+
+server.registerTool(
+  "notes.add_link",
+  {
+    title: "Add Link",
+    description: "Append a hyperlink to a note.",
+    inputSchema: z.object({ id: z.string(), url: z.string().url(), text: z.string().optional() }),
+  },
+  async (args) => {
+    const note = await addLink({ id: args.id, url: args.url, text: args.text });
+    return { content: [{ type: "text", text: JSON.stringify(note) }] };
+  }
+);
+
+server.registerTool(
+  "notes.toggle_checklist",
+  {
+    title: "Toggle Checklist Item",
+    description: "Toggle or set a checklist item by index.",
+    inputSchema: z.object({ id: z.string(), index: z.number().int().nonnegative(), checked: z.boolean().optional() }),
+  },
+  async (args) => {
+    const note = await toggleChecklistItem({ id: args.id, index: args.index, checked: args.checked });
+    return { content: [{ type: "text", text: JSON.stringify(note) }] };
+  }
+);
+
+server.registerTool(
+  "notes.remove_checklist",
+  {
+    title: "Remove Checklist Item",
+    description: "Remove a checklist item by index.",
+    inputSchema: z.object({ id: z.string(), index: z.number().int().nonnegative() }),
+  },
+  async (args) => {
+    const note = await removeChecklistItem({ id: args.id, index: args.index });
     return { content: [{ type: "text", text: JSON.stringify(note) }] };
   }
 );

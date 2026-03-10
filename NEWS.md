@@ -14,12 +14,18 @@ This document tracks goals, features, decisions, wall-hits, and compact summarie
   - Create/ensure path (nested)
   - List all folders (id, name, account)
   - Delete folder by path
+  - Rename folder
+  - List folder contents by path (notes + subfolders)
 - Notes
   - Create in folder (title/body)
   - Read by id (title/body/modified/folder)
   - Update (title/body, append text)
-  - Format (basic HTML transforms: bold/italic/pre for entire body or fragments)
-  - Add checklist items (append checklist-style HTML)
+  - Move between folders (id or path)
+  - Format (basic HTML transforms: bold/italic/monospace for body)
+  - Add checklist items (append checklist HTML)
+  - Toggle/remove checklist items by index
+  - Add hyperlink
+  - Search by name or body
 
 ## Security & Privacy
 
@@ -56,8 +62,8 @@ This document tracks goals, features, decisions, wall-hits, and compact summarie
 
 ## Current Status (Compact)
 
-- Done: server scaffold; list/get/create/update/delete notes; list folders; ensure folder; client demo; repo published.
-- Next: add folders.delete, notes.add_checklist, notes.append_text, notes.apply_format; update README; push.
+- Done: Core CRUD for notes; list/ensure/delete/rename folders; move note; folder contents; append text; add/toggle/remove checklist; basic formatting; add link; search; repo published.
+- Next: Structured output schemas; safe-mode toggles; more formatting helpers; improve checklist parsing robustness; richer docs.
 
 ## Iteration Log
 
@@ -67,3 +73,11 @@ This document tracks goals, features, decisions, wall-hits, and compact summarie
 - Decision: Use AppleScript for folder ops where JXA fails.
 - Next: add delete folder, checklist, formatting, docs.
 
+### Iteration 2
+- Added: folders.delete, notes.append_text, notes.add_checklist, notes.apply_format.
+- Decision: Keep JSON-in-text for broad compatibility; plan to add structuredContent next.
+
+### Iteration 3
+- Added: notes.move, folders.rename, folders.contents, notes.search, notes.add_link, notes.toggle_checklist, notes.remove_checklist.
+- Limits: Attachments (images/files), tags, lock/pin/sharing not reliably scriptable via Notes Scripting; left as out-of-scope for now.
+- Next: Add structuredContent schemas; safety annotations and read-only mode; expand README examples.

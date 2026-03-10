@@ -4,7 +4,7 @@ This is a local-only MCP server that lets AI agents create, read, search, organi
 
 Quick Start
 
-- Requirements: macOS, Node 20+, Apple Notes enabled.
+- Requirements: macOS, Node 22+, Apple Notes enabled.
 - Install: `npm install` (first time), then `npm run build`.
 - Start the server: `node dist/index.js` (or `npm run dev` for TypeScript dev mode).
 - Then connect with an MCP‑compatible client (see Clients below).

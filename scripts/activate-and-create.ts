@@ -19,12 +19,7 @@ async function main() {
     name: "folders.ensure",
     arguments: { path: "mcp" },
   });
-
-  const folderJson = folderRes.content.find((c: any) => c.type === "text");
-  if (!folderJson || typeof (folderJson as any).text !== "string") {
-    throw new Error("Unexpected folders.ensure result");
-  }
-  const folder = JSON.parse((folderJson as any).text) as { id: string };
+  const folder = (folderRes as any).structuredContent.folder as { id: string };
 
   const body = [
     "Origin of AI Life",
@@ -42,13 +37,23 @@ async function main() {
     name: "notes.create",
     arguments: { folderId: folder.id, title: "note-1", body },
   });
+  const created = (noteRes as any).structuredContent.note;
 
-  const noteJson = noteRes.content.find((c: any) => c.type === "text");
-  if (!noteJson || typeof (noteJson as any).text !== "string") {
-    throw new Error("Unexpected notes.create result");
-  }
-  const note = JSON.parse((noteJson as any).text);
-  console.log(JSON.stringify({ created: { folder, note } }, null, 2));
+  const appended = await client.callTool({
+    name: "notes.append_text",
+    arguments: { id: created.id, text: "\nNext step: book flights" },
+  });
+  const checklist = await client.callTool({
+    name: "notes.add_checklist",
+    arguments: { id: created.id, items: [{ text: "Passport" }, { text: "Charger", checked: true }] },
+  });
+
+  console.log(JSON.stringify({
+    folder,
+    created: (noteRes as any).structuredContent.note,
+    appended: (appended as any).structuredContent.note,
+    checklist: (checklist as any).structuredContent.note,
+  }, null, 2));
 
   await client.close();
 }
@@ -57,4 +62,3 @@ main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
-

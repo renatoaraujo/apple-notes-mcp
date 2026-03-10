@@ -267,6 +267,80 @@ server.registerTool(
   }
 );
 
+// Helper to build a professional action plan HTML
+function buildActionPlanHtml(params: { title?: string; context?: string }) {
+  const updated = new Date().toLocaleString();
+  const title = params.title || "AI Project Plan";
+  const sanitizedContext = (params.context || "After a recent meeting, I was tasked with building an AI solution. Motivation and scope will be clarified; we will define value and ship iteratively.")
+    .replace(/asshole|ass\s*hole|motherfuc?k(er)?/gi, "colleague")
+    .replace(/\bnobody\b\s*wasnts?/gi, "demand is uncertain")
+    .replace(/\s+/g, " ")
+    .trim();
+  const html = [
+    `<h1>${title}</h1>`,
+    `<p><em>Updated: ${updated}</em></p>`,
+    '<h2>Summary</h2>',
+    '<p>Deliver a minimal, valuable AI with clear scope and measurable success. This note tracks context, goals, plan, and next steps.</p>',
+    '<h2>Context</h2>',
+    `<p>${sanitizedContext}</p>`,
+    '<h2>Goals</h2>',
+    '<ul>',
+    '<li>Define success metrics and scope</li>',
+    '<li>Deliver smallest valuable version (MVP)</li>',
+    '<li>Respect privacy, policy, and compliance</li>',
+    '</ul>',
+    '<h2>Plan</h2>',
+    '<ol>',
+    '<li>Requirements: stakeholders, use cases, success criteria</li>',
+    '<li>Design: data sources, constraints, architecture</li>',
+    '<li>Baseline: model choice, evaluation harness, telemetry</li>',
+    '<li>MVP: implement thin slice, instrument, ship</li>',
+    '<li>Iterate: feedback, risks, rollout</li>',
+    '</ol>',
+    '<h2>Tasks</h2>',
+    '<ul>',
+    '<li>[ ] Stakeholder kickoff (problem, constraints, outcomes)</li>',
+    '<li>[ ] Draft 1‑pager (scope, value, risks)</li>',
+    '<li>[ ] Data audit (owners, access, retention, PII)</li>',
+    '<li>[ ] Baseline model + evaluation plan</li>',
+    '<li>[ ] OpenTelemetry: logs/metrics/traces</li>',
+    '<li>[ ] MVP + smoke tests</li>',
+    '<li>[ ] Rollout and documentation</li>',
+    '</ul>',
+    '<h2>Next 48h</h2>',
+    '<ul>',
+    '<li>Book kickoff</li>',
+    '<li>Draft 1‑pager</li>',
+    '<li>List data sources and owners</li>',
+    '</ul>',
+    '<h2>Risks & mitigations</h2>',
+    '<ul>',
+    '<li>Scope creep → written success criteria</li>',
+    '<li>Data quality/privacy → audit + approval</li>',
+    '<li>Ambiguous value → MVP metrics + feedback loop</li>',
+    '</ul>',
+    '<h2>Decisions/Notes</h2>',
+    '<ul><li>TBD</li></ul>'
+  ].join('\n');
+  return html;
+}
+
+server.registerTool(
+  "notes.apply_action_plan_template",
+  {
+    title: "Apply Action Plan Template",
+    description: "Overwrite a note body with a professional action plan (headings, lists, timestamp).",
+    inputSchema: z.object({ id: z.string(), title: z.string().optional(), context: z.string().optional() }),
+    outputSchema: z.object({ note: ZNoteDetail.nullable() }),
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  },
+  async (args) => {
+    const html = buildActionPlanHtml({ title: args.title, context: args.context });
+    const note = await guardWrite(() => updateNote({ id: args.id, body: html }));
+    return { content: [], structuredContent: { note } };
+  }
+);
+
 server.registerTool(
   "notes.list",
   {

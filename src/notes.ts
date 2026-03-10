@@ -21,6 +21,10 @@ function esc(str: string): string {
   // Escape backticks within template literals used in JXA script
   return str.replaceAll("`", "\\`");
 }
+function js(str: string): string {
+  // Safely embed arbitrary text into JXA by JSON stringifying
+  return JSON.stringify(str);
+}
 
 export async function listFolders(): Promise<FolderInfo[]> {
   const script = `
@@ -121,7 +125,7 @@ export async function appendTextToNote(params: { id: string; text: string }): Pr
     const found = locate("${esc(id)}");
     if (!found) { JSON.stringify(null); return; }
     const { n, f } = found;
-    n.body = String(n.body()) + "${esc(text)}";
+    n.body = String(n.body()) + ${js(text)};
     const out = { id: n.id(), name: n.name(), body: String(n.body()), modificationDate: (n.modificationDate() ? n.modificationDate().toISOString() : undefined), folderId: f.id() };
     JSON.stringify(out);
   `;
@@ -141,7 +145,7 @@ export async function addChecklist(params: { id: string; items: { text: string; 
     const found = locate("${esc(id)}");
     if (!found) { JSON.stringify(null); return; }
     const { n, f } = found;
-    n.body = String(n.body()) + "${htmlItems}";
+    n.body = String(n.body()) + ${js(htmlItems)};
     const out = { id: n.id(), name: n.name(), body: String(n.body()), modificationDate: (n.modificationDate() ? n.modificationDate().toISOString() : undefined), folderId: f.id() };
     JSON.stringify(out);
   `;
@@ -217,44 +221,50 @@ export async function getNote(id: string): Promise<NoteDetail | null> {
 export async function createNote(params: { title?: string; body?: string; folderId?: string }): Promise<NoteDetail> {
   const title = params.title ?? "";
   const body = params.body ?? "";
-  const script = `
+  const target = params.folderId
+    ? `folder id \"${esc(params.folderId)}\"`
+    : `default folder of default account`;
+  const as = `tell application \"Notes\" to make new note with properties {name:\"${esc(title)}\", body:\"${esc(body)}\"} at ${target}`;
+  await runAppleScript(as);
+  const js = `
     const Notes = Application('Notes');
-    function folderById(id) {
-      let hit = null;
-      Notes.accounts().some(a => a.folders().some(f => { if (String(f.id()) === String(id)) { hit = f; return true; } return false; }));
-      return hit;
+    function resolveTarget() {
+      if ('${params.folderId ?? ''}') {
+        let hit=null; Notes.accounts().some(a=>a.folders().some(f=>{ if(String(f.id())==='${esc(params.folderId ?? '')}'){ hit=f; return true;} return false; }));
+        return hit;
+      }
+      return Notes.defaultAccount().defaultFolder();
     }
-    const target = (${params.folderId ? `folderById("${esc(params.folderId)}")` : `Notes.defaultAccount().defaultFolder()`});
-    // Create note with properties
-    const props = { name: "${esc(title)}", body: "${esc(body)}" };
-    Notes.make({ new: Notes.Note, at: target, withProperties: props });
-    // Find the most recently modified note in the target folder that matches the title.
-    const candidates = target.notes().filter(n => String(n.name()) === "${esc(title)}");
-    let picked = candidates.length ? candidates[0] : target.notes()[0];
-    const out = { id: picked.id(), name: picked.name(), body: String(picked.body()), modificationDate: (picked.modificationDate() ? picked.modificationDate().toISOString() : undefined), folderId: target.id() };
+    const f = resolveTarget();
+    const list = f.notes();
+    let picked = null;
+    for (let i=0;i<list.length;i++){ if (String(list[i].name()) === '${esc(title)}'){ picked=list[i]; break; } }
+    if (!picked && list.length>0) picked = list[0];
+    const out = picked ? { id: picked.id(), name: picked.name(), body: String(picked.body()), modificationDate: (picked.modificationDate() ? picked.modificationDate().toISOString() : undefined), folderId: f.id() } : null;
     JSON.stringify(out);
   `;
-  return runJxa<NoteDetail>(script);
+  const out = await runJxa<NoteDetail | null>(js);
+  if (!out) throw new Error('failed to create note');
+  return out;
 }
 
 export async function updateNote(params: { id: string; title?: string; body?: string; append?: boolean }): Promise<NoteDetail | null> {
   const { id, title, body, append } = params;
-  const script = `
-    const Notes = Application('Notes');
-    function locate(id) {
-      let hit = null;
-      Notes.accounts().some(a => a.folders().some(f => f.notes().some(n => { if (String(n.id()) === String(id)) { hit = { n, f }; return true; } return false; })));
-      return hit;
+  const escAS = (s: string) => s.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"");
+  const lines: string[] = ['tell application "Notes"'];
+  if (title !== undefined) {
+    lines.push(`  set name of note id \"${escAS(id)}\" to \"${escAS(title)}\"`);
+  }
+  if (body !== undefined) {
+    if (append) {
+      lines.push(`  set body of note id \"${escAS(id)}\" to ((body of note id \"${escAS(id)}\") & \"${escAS(body)}\")`);
+    } else {
+      lines.push(`  set body of note id \"${escAS(id)}\" to \"${escAS(body)}\"`);
     }
-    const found = locate("${esc(id)}");
-    if (!found) { JSON.stringify(null); return; }
-    const { n, f } = found;
-    ${title !== undefined ? `n.name = "${esc(title)}";` : ""}
-    ${body !== undefined ? (append ? `n.body = String(n.body()) + "${esc(body)}";` : `n.body = "${esc(body)}";`) : ""}
-    const out = { id: n.id(), name: n.name(), body: String(n.body()), modificationDate: (n.modificationDate() ? n.modificationDate().toISOString() : undefined), folderId: f.id() };
-    JSON.stringify(out);
-  `;
-  return runJxa<NoteDetail | null>(script);
+  }
+  lines.push('end tell');
+  await runAppleScript(lines.join("\n"));
+  return getNote(id);
 }
 
 export async function deleteNote(id: string): Promise<boolean> {

@@ -17,8 +17,8 @@ export async function runJxa<T = unknown>(script: string): Promise<T> {
   proc.stdout.on("data", (d) => chunks.push(Buffer.from(d)));
   proc.stderr.on("data", (d) => errChunks.push(Buffer.from(d)));
 
-  const wrapped = `(() => {\n${script}\n})()`;
-  proc.stdin.write(wrapped);
+  // Write script directly; JXA prints the value of the last expression.
+  proc.stdin.write(script);
   proc.stdin.end();
 
   const code: number = await new Promise((resolve, reject) => {

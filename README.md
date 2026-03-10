@@ -29,6 +29,25 @@ Run
 node dist/index.js
 ```
 
+Run with `npx`
+
+Once published to npm, you can launch it directly:
+
+```bash
+npx @rnto1/apple-notes-mcp
+```
+
+The package exposes the `apple-notes-mcp` bin and ships prebuilt `dist/` output in the tarball.
+
+For local verification before publishing:
+
+```bash
+npm pack
+npx -y ./rnto1-apple-notes-mcp-0.3.0.tgz --help
+```
+
+For GitHub-based installs, `prepare` and `prepack` rebuild the package automatically so the CLI entrypoint still resolves.
+
 CLI flags
 
 - `--help`

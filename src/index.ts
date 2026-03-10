@@ -3,6 +3,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import type { ToolTaskHandler } from "@modelcontextprotocol/sdk/experimental/tasks/interfaces.js";
 import {
   createNote,
@@ -590,6 +592,22 @@ server.registerTool(
     return { content: [], structuredContent: { safeMode: SAFE_MODE } };
   }
 );
+
+// Lightweight CLI flags for CI/testing and users
+try {
+  const argv = process.argv.slice(2);
+  if (argv.includes("--version")) {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const pkg = JSON.parse(readFileSync(path.resolve(__dirname, "../package.json"), "utf8"));
+    console.log(String(pkg.version || "0.0.0"));
+    process.exit(0);
+  }
+  if (argv.includes("--help")) {
+    console.log("apple-notes-mcp: start an MCP server over stdio.\nUsage: npx @rnto1/apple-notes-mcp [--version] [--help]");
+    process.exit(0);
+  }
+} catch {}
 
 // Start on stdio for MCP
 const transport = new StdioServerTransport();

@@ -1,4 +1,4 @@
-import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
@@ -28,6 +28,13 @@ function latestTag() {
     .split('\n')
     .map((entry) => entry.trim())
     .filter(Boolean)[0];
+}
+
+function currentPackageVersion() {
+  const packageJson = JSON.parse(
+    readFileSync(path.resolve(process.cwd(), 'package.json'), 'utf8')
+  );
+  return String(packageJson.version);
 }
 
 function commitMessages(range) {
@@ -68,6 +75,16 @@ if (existing.length > 0) {
 }
 
 const tag = latestTag();
+const currentVersion = currentPackageVersion();
+const latestTagVersion = tag ? tag.replace(/^v/, '') : null;
+
+if (latestTagVersion && latestTagVersion !== currentVersion) {
+  console.log(
+    `Current package version ${currentVersion} already differs from latest tag ${latestTagVersion}. Skipping changeset generation.`
+  );
+  process.exit(0);
+}
+
 const range = tag ? `${tag}..HEAD` : 'HEAD';
 const messages = commitMessages(range);
 

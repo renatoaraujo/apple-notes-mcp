@@ -9,10 +9,10 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
   release:
-    if: github.actor != 'github-actions[bot]'
     runs-on: macos-latest
     permissions:
       contents: write
+      pull-requests: write
       id-token: write
     steps:
       - uses: actions/checkout@v6
@@ -27,52 +27,17 @@ jobs:
       - run: npm ci
       - run: npm run ci
 
-      - name: Generate release changeset
+      - name: Generate release changeset when needed
         run: node scripts/generate-release-changeset.js
 
-      - name: Version packages
-        run: npm run version-packages
-
-      - name: Sync lockfile
-        run: npm install --package-lock-only
-
-      - name: Detect release changes
-        id: release_changes
-        run: |
-          if git diff --quiet -- .changeset package.json package-lock.json CHANGELOG.md; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Configure git user
-        if: steps.release_changes.outputs.changed == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Commit release changes
-        if: steps.release_changes.outputs.changed == 'true'
-        run: |
-          git add .changeset package.json package-lock.json CHANGELOG.md
-          git commit -m "chore: release packages"
-
-      - name: Capture version
-        if: steps.release_changes.outputs.changed == 'true'
-        id: package_version
-        run: echo "version=$(node -e "console.log(JSON.parse(require('node:fs').readFileSync('package.json','utf8')).version)")" >> "$GITHUB_OUTPUT"
-
-      - name: Tag release
-        if: steps.release_changes.outputs.changed == 'true'
-        run: git tag "v${{ steps.package_version.outputs.version }}"
-
-      - name: Publish to npm
-        if: steps.release_changes.outputs.changed == 'true'
-        run: npm run release
+      - uses: changesets/action@v1
+        with:
+          version: npm run version-packages
+          publish: npm run release
+          commit: 'chore: release packages'
+          title: 'chore: release packages'
+          github-token: ${{ secrets.RELEASE_PR_TOKEN }}
         env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PR_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
-
-      - name: Push release commit and tag
-        if: steps.release_changes.outputs.changed == 'true'
-        run: git push origin HEAD:main --follow-tags

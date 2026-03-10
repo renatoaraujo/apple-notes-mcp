@@ -1,6 +1,6 @@
 {
-  "name": "apple-notes-mcp",
-  "version": "0.1.1",
+  "name": "@renatoaraujo/apple-notes-mcp",
+  "version": "0.2.0",
   "private": false,
   "type": "module",
   "bin": {
@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "postbuild": "node scripts/ensure-shebang.js",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "activate:create": "tsx scripts/activate-and-create.ts",
@@ -31,5 +32,9 @@
   ],
   "publishConfig": {
     "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/renatoaraujo/apple-notes-mcp.git"
   }
 }

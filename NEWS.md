@@ -81,3 +81,10 @@ This document tracks goals, features, decisions, wall-hits, and compact summarie
 - Added: notes.move, folders.rename, folders.contents, notes.search, notes.add_link, notes.toggle_checklist, notes.remove_checklist.
 - Limits: Attachments (images/files), tags, lock/pin/sharing not reliably scriptable via Notes Scripting; left as out-of-scope for now.
 - Next: Add structuredContent schemas; safety annotations and read-only mode; expand README examples.
+
+### Iteration 4
+- Structured outputs: All tools now return structuredContent with Zod schemas.
+- Safe mode: Global read-only toggle via env `NOTES_MCP_SAFE=1` or tool `server.set_safe_mode`.
+- Safety annotations: Tools annotated with readOnly/destructive/idempotent hints.
+- Concurrency: Body search uses bounded concurrency for better performance.
+- Next: Optional task-based tooling for long-running ops; richer examples; CI.

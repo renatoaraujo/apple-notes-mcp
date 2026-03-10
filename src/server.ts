@@ -302,7 +302,7 @@ export function createNotesServer(params: {
   );
 
   server.registerTool(
-    'server.status',
+    'server_status',
     {
       title: 'Server Status',
       description: 'Get the current local server policy and client capability snapshot.',
@@ -321,7 +321,7 @@ export function createNotesServer(params: {
   );
 
   server.registerTool(
-    'accounts.list',
+    'accounts_list',
     {
       title: 'List Accounts',
       description: 'List Apple Notes accounts on this Mac.',
@@ -336,7 +336,7 @@ export function createNotesServer(params: {
   );
 
   server.registerTool(
-    'folders.list',
+    'folders_list',
     {
       title: 'List Folders',
       description: 'List Apple Notes folders with full account-aware paths.',
@@ -352,7 +352,7 @@ export function createNotesServer(params: {
   );
 
   server.registerTool(
-    'folders.get',
+    'folders_get',
     {
       title: 'Get Folder',
       description: 'Get a folder and its immediate contents by id or path.',
@@ -388,7 +388,7 @@ export function createNotesServer(params: {
   );
 
   server.registerTool(
-    'folders.ensure',
+    'folders_ensure',
     {
       title: 'Ensure Folder',
       description: 'Create a nested folder path if it does not already exist.',
@@ -415,7 +415,7 @@ export function createNotesServer(params: {
   );
 
   server.registerTool(
-    'folders.rename',
+    'folders_rename',
     {
       title: 'Rename Folder',
       description: 'Rename a folder by id.',
@@ -441,7 +441,7 @@ export function createNotesServer(params: {
   );
 
   server.registerTool(
-    'folders.delete',
+    'folders_delete',
     {
       title: 'Delete Folder',
       description: 'Delete a folder by id. This is destructive.',
@@ -472,7 +472,7 @@ export function createNotesServer(params: {
   );
 
   server.registerTool(
-    'notes.list',
+    'notes_list',
     {
       title: 'List Notes',
       description: 'List notes, optionally restricted to a folder.',
@@ -491,7 +491,7 @@ export function createNotesServer(params: {
   );
 
   server.registerTool(
-    'notes.search',
+    'notes_search',
     {
       title: 'Search Notes',
       description: 'Search note titles and plaintext bodies.',
@@ -510,7 +510,7 @@ export function createNotesServer(params: {
   );
 
   server.registerTool(
-    'notes.get',
+    'notes_get',
     {
       title: 'Get Note',
       description: 'Get a note by id with normalized plaintext and optional HTML.',
@@ -532,7 +532,7 @@ export function createNotesServer(params: {
   );
 
   server.registerTool(
-    'notes.create',
+    'notes_create',
     {
       title: 'Create Note',
       description:
@@ -566,7 +566,7 @@ export function createNotesServer(params: {
   );
 
   server.registerTool(
-    'notes.update',
+    'notes_update',
     {
       title: 'Update Note',
       description:
@@ -596,7 +596,7 @@ export function createNotesServer(params: {
   );
 
   server.registerTool(
-    'notes.move',
+    'notes_move',
     {
       title: 'Move Note',
       description: 'Move a note to another folder by folder id.',
@@ -622,7 +622,7 @@ export function createNotesServer(params: {
   );
 
   server.registerTool(
-    'notes.delete',
+    'notes_delete',
     {
       title: 'Delete Note',
       description: 'Delete a note by id. This is destructive.',

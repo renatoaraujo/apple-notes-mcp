@@ -41,7 +41,7 @@ Environment
   - Set to `0` for read-only mode.
 - `NOTES_MCP_ALLOW_DELETES=0|1`
   - Default: `0`
-  - Set to `1` to allow `notes.delete` and `folders.delete` without an interactive MCP confirmation flow.
+  - Set to `1` to allow `notes_delete` and `folders_delete` without an interactive MCP confirmation flow.
 
 Client configuration
 
@@ -75,20 +75,20 @@ Public MCP surface
 
 Tools
 
-- `server.status`
-- `accounts.list`
-- `folders.list`
-- `folders.get`
-- `folders.ensure`
-- `folders.rename`
-- `folders.delete`
-- `notes.list`
-- `notes.search`
-- `notes.get`
-- `notes.create`
-- `notes.update`
-- `notes.move`
-- `notes.delete`
+- `server_status`
+- `accounts_list`
+- `folders_list`
+- `folders_get`
+- `folders_ensure`
+- `folders_rename`
+- `folders_delete`
+- `notes_list`
+- `notes_search`
+- `notes_get`
+- `notes_create`
+- `notes_update`
+- `notes_move`
+- `notes_delete`
 
 Resources
 
@@ -120,14 +120,14 @@ Reads return note metadata with canonical content:
 
 Write operations are explicit:
 
-- `notes.create`
+- `notes_create`
   - accepts `title`
   - accepts `content` as either `{ "format": "plain_text", "text": "..." }` or `{ "format": "apple_html", "html": "..." }`
   - accepts `folderId` or `folderPath`
-- `notes.update`
+- `notes_update`
   - accepts `title`
   - accepts exactly one of `replaceText`, `replaceHtml`, or `appendText`
-- `notes.move`
+- `notes_move`
   - accepts `toFolderId`
 
 Safety model

@@ -1,35 +1,49 @@
 Apple Notes MCP (Local)
 
-This is a local-only MCP server that lets any AI agent create, read, search, organize, and format Apple Notes on your Mac. It uses the macOS Notes app directly (no cloud, no external network).
+This is a local-only MCP server that lets AI agents create, read, search, organize, and format Apple Notes on your Mac. It talks to the macOS Notes app directly (no cloud, no external network).
 
-Quick Start (no coding)
+Quick Start
 
 - Requirements: macOS, Node 20+, Apple Notes enabled.
 - Install: `npm install` (first time), then `npm run build`.
-- Start the MCP server: `node dist/index.js`.
-- Connect your AI agent/client (see “Connect to your AI”).
+- Start the server: `node dist/index.js` (or `npm run dev` for TypeScript dev mode).
+- Then connect with an MCP‑compatible client (see Clients below).
 
-Connect to your AI
+Clients
 
-- Generic MCP config (most clients):
-  {
-    "mcpServers": {
-      "apple-notes": {
-        "command": "node",
-        "args": ["/absolute/path/to/apple-notes-mcp/dist/index.js"]
+- Claude Desktop (macOS)
+  - Edit: `~/Library/Application Support/Claude/claude_desktop_config.json`
+  - Add under `mcpServers`:
+    {
+      "mcpServers": {
+        "apple-notes": {
+          "command": "node",
+          "args": ["/absolute/path/to/apple-notes-mcp/dist/index.js"]
+        }
       }
     }
-  }
-- Claude Desktop (macOS): edit `~/Library/Application Support/Claude/claude_desktop_config.json` and add the block above, then restart Claude.
-- Dev mode (no build):
-  {
-    "mcpServers": {
-      "apple-notes": {
-        "command": "node",
-        "args": ["/absolute/path/to/apple-notes-mcp/node_modules/tsx/dist/cli.js", "src/index.ts"]
+  - Restart Claude Desktop.
+
+- Generic MCP clients (Cursor, Continue, Cline, etc.)
+  - Most clients support a `mcpServers` block with a `command` and `args` array.
+  - Use the same JSON block as above and follow your client’s docs for the config file path.
+
+- Dev mode (no build)
+  - If you prefer not to build, point to tsx:
+    {
+      "mcpServers": {
+        "apple-notes": {
+          "command": "node",
+          "args": ["/absolute/path/to/apple-notes-mcp/node_modules/tsx/dist/cli.js", "src/index.ts"]
+        }
       }
     }
-  }
+
+- Codex CLI
+  - Codex CLI does not yet expose first‑class MCP server configuration. You can:
+    - Use Claude Desktop, Cursor, Continue, or Cline to access this MCP server in parallel with Codex.
+    - Or call the server directly from Node using the example scripts in `scripts/` (see below).
+  - When Codex adds MCP configuration support, use the same `command` and `args` block above.
 
 What you can ask your AI to do
 
@@ -40,7 +54,7 @@ What you can ask your AI to do
 - “Bold the entire body of the note named ‘Retrospective’.”
 - “List the contents (notes and subfolders) of Personal/Health.”
 
-Tool overview (friendly)
+Tool overview
 
 - Folders: ensure (create path), delete, rename, contents, list_folders.
 - Notes: create, get, list, update, delete, move, append_text, add_checklist, toggle_checklist, remove_checklist, apply_format, add_link, search.
@@ -63,7 +77,7 @@ For advanced users
 - Scripts: `npm run activate:create` demonstrates connecting to the MCP locally and creating content.
 - Structured outputs: All tools return structuredContent with explicit schemas to help agents reason safely.
 
-Unscriptable or limited areas (for now)
+Unscriptable or limited areas
 
 - Fine-grained rich text ranges, attachments, tags, pin/lock, collaboration controls are not reliably scriptable via Notes automation. We focus on features that work consistently.
 
@@ -97,3 +111,9 @@ Tips
 
 - You can refer to notes and folders by names/paths in your natural request; the agent will resolve IDs using the tools above.
 - For bulk or long jobs (e.g., indexing), background tasks let agents work in parallel without blocking chat.
+
+Verification
+
+- Connectivity: most clients show a server named `apple-notes` under Tools/Servers once connected.
+- Permissions: on first use, macOS will prompt to allow automation for Notes. Approve it.
+- Logging: run in a terminal to see startup logs and any AppleScript/JXA errors.

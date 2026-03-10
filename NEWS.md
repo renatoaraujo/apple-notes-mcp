@@ -47,16 +47,16 @@ This document tracks goals, features, decisions, wall-hits, and compact summarie
 
 ## Implementation Plan (Phases)
 
-1) Core Folder/Note ops
+1. Core Folder/Note ops
    - folders.create (nested path)
    - folders.delete (path)
    - notes.create, notes.get, notes.list, notes.update, notes.delete
-2) Checklists and Text helpers
+2. Checklists and Text helpers
    - notes.add_checklist (append HTML checklist)
    - notes.append_text (append plain text to body)
-3) Formatting
+3. Formatting
    - notes.apply_format: bold_all, italic_all, monospace_all, or wrap fragment
-4) Docs & Tooling
+4. Docs & Tooling
    - README updates, examples, dev scripts
    - Security notes
 
@@ -68,21 +68,25 @@ This document tracks goals, features, decisions, wall-hits, and compact summarie
 ## Iteration Log
 
 ### Iteration 1
+
 - Implemented server with tools: list_folders, list, get, create, update, delete; folders.ensure.
 - Added client script to demo creating folder and note.
 - Decision: Use AppleScript for folder ops where JXA fails.
 - Next: add delete folder, checklist, formatting, docs.
 
 ### Iteration 2
+
 - Added: folders.delete, notes.append_text, notes.add_checklist, notes.apply_format.
 - Decision: Keep JSON-in-text for broad compatibility; plan to add structuredContent next.
 
 ### Iteration 3
+
 - Added: notes.move, folders.rename, folders.contents, notes.search, notes.add_link, notes.toggle_checklist, notes.remove_checklist.
 - Limits: Attachments (images/files), tags, lock/pin/sharing not reliably scriptable via Notes Scripting; left as out-of-scope for now.
 - Next: Add structuredContent schemas; safety annotations and read-only mode; expand README examples.
 
 ### Iteration 4
+
 - Structured outputs: All tools now return structuredContent with Zod schemas.
 - Safe mode: Global read-only toggle via env `NOTES_MCP_SAFE=1` or tool `server.set_safe_mode`.
 - Safety annotations: Tools annotated with readOnly/destructive/idempotent hints.

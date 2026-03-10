@@ -6,4 +6,3 @@ const shebang = '#!/usr/bin/env node\n';
 if (!src.startsWith(shebang)) {
   writeFileSync(file, shebang + src, 'utf8');
 }
-

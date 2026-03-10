@@ -4,7 +4,7 @@ This is a local-only MCP server that lets AI agents create, read, search, organi
 
 Quick Start
 
-- Requirements: macOS, Node 20+, Apple Notes enabled.
+- Requirements: macOS, Node 22+, Apple Notes enabled.
 - Install: `npm install` (first time), then `npm run build`.
 - Start the server: `node dist/index.js` (or `npm run dev` for TypeScript dev mode).
 - Then connect with an MCP‑compatible client (see Clients below).
@@ -15,12 +15,12 @@ Clients
   - Edit: `~/Library/Application Support/Claude/claude_desktop_config.json`
   - Add under `mcpServers`:
     {
-      "mcpServers": {
-        "apple-notes": {
-          "command": "node",
-          "args": ["/absolute/path/to/apple-notes-mcp/dist/index.js"]
-        }
-      }
+    "mcpServers": {
+    "apple-notes": {
+    "command": "node",
+    "args": ["/absolute/path/to/apple-notes-mcp/dist/index.js"]
+    }
+    }
     }
   - Restart Claude Desktop.
 
@@ -31,12 +31,12 @@ Clients
 - Dev mode (no build)
   - If you prefer not to build, point to tsx:
     {
-      "mcpServers": {
-        "apple-notes": {
-          "command": "node",
-          "args": ["/absolute/path/to/apple-notes-mcp/node_modules/tsx/dist/cli.js", "src/index.ts"]
-        }
-      }
+    "mcpServers": {
+    "apple-notes": {
+    "command": "node",
+    "args": ["/absolute/path/to/apple-notes-mcp/node_modules/tsx/dist/cli.js", "src/index.ts"]
+    }
+    }
     }
 
 - Codex CLI
@@ -47,7 +47,7 @@ Clients
 
 npx options
 
-- Once published to npm: `npx @renatoaraujo/apple-notes-mcp` starts the server.
+- Once published to npm: `npx @rnto1/apple-notes-mcp` starts the server.
 - Immediate (GitHub): `npx -y github:renatoaraujo/apple-notes-mcp apple-notes-mcp`.
 - If the npm name is unavailable in your org, publish under a scope (e.g., `@yourscope/apple-notes-mcp`) and run `npx @yourscope/apple-notes-mcp`.
 

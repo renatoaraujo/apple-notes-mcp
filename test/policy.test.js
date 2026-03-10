@@ -28,7 +28,10 @@ test('SafetyPolicy blocks writes when disabled', () => {
     allowDestructiveDeletes: false,
   });
 
-  assert.throws(() => policy.assertWriteAllowed(), /Write operations are disabled/);
+  assert.throws(
+    () => policy.assertWriteAllowed(),
+    /Write operations are disabled/
+  );
 });
 
 test('SafetyPolicy blocks delete without policy override or elicitation', async () => {

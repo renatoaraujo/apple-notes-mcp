@@ -67,7 +67,9 @@ const isEntrypoint =
 if (isEntrypoint) {
   main().catch((error) => {
     console.error(
-      error instanceof Error ? error.message : `Failed to start server: ${String(error)}`
+      error instanceof Error
+        ? error.message
+        : `Failed to start server: ${String(error)}`
     );
     process.exit(1);
   });

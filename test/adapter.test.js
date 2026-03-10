@@ -81,7 +81,10 @@ test('getFolderByPath rejects ambiguous paths across accounts', async () => {
   );
 
   const adapter = new AppleNotesAdapter(runtime);
-  await assert.rejects(() => adapter.getFolderByPath('Projects'), /Provide accountId/);
+  await assert.rejects(
+    () => adapter.getFolderByPath('Projects'),
+    /Provide accountId/
+  );
 });
 
 test('createNote resolves folderPath before writing and returns normalized note detail', async () => {
@@ -194,5 +197,8 @@ test('searchNotes searches title and plaintext body without index storage', asyn
   const adapter = new AppleNotesAdapter(runtime);
   const results = await adapter.searchNotes({ query: 'friday', limit: 10 });
 
-  assert.deepEqual(results.map((entry) => entry.id), ['note-1']);
+  assert.deepEqual(
+    results.map((entry) => entry.id),
+    ['note-1']
+  );
 });

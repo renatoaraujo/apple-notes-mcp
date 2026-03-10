@@ -84,7 +84,10 @@ For development, you can point a client at `tsx` instead:
   "mcpServers": {
     "apple-notes": {
       "command": "node",
-      "args": ["/absolute/path/to/apple-notes-mcp/node_modules/tsx/dist/cli.js", "src/index.ts"]
+      "args": [
+        "/absolute/path/to/apple-notes-mcp/node_modules/tsx/dist/cli.js",
+        "src/index.ts"
+      ]
     }
   }
 }

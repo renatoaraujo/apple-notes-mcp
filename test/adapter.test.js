@@ -213,11 +213,14 @@ test('listAccounts fails fast with guidance while warmup approval is pending', a
     warmupWaitMs: 10,
   });
 
-  await assert.rejects(() => adapter.listAccounts(), (error) => {
-    assert.equal(error.code, 'permission_denied');
-    assert.match(error.message, /Automation prompt/);
-    return true;
-  });
+  await assert.rejects(
+    () => adapter.listAccounts(),
+    (error) => {
+      assert.equal(error.code, 'permission_denied');
+      assert.match(error.message, /Automation prompt/);
+      return true;
+    }
+  );
 
   assert.match(runtime.appleScripts[0], /tell application "Notes"/);
   assert.match(runtime.appleScripts[0], /activate/);
@@ -235,9 +238,12 @@ test('listAccounts maps Apple Events denial to permission_denied', async () => {
 
   const adapter = new AppleNotesAdapter(runtime, { enableWarmup: false });
 
-  await assert.rejects(() => adapter.listAccounts(), (error) => {
-    assert.equal(error.code, 'permission_denied');
-    assert.match(error.message, /System Settings/);
-    return true;
-  });
+  await assert.rejects(
+    () => adapter.listAccounts(),
+    (error) => {
+      assert.equal(error.code, 'permission_denied');
+      assert.match(error.message, /System Settings/);
+      return true;
+    }
+  );
 });

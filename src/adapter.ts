@@ -197,8 +197,7 @@ export class AppleNotesAdapter implements NotesAdapter {
     options: AppleNotesAdapterOptions = {}
   ) {
     this.warmupEnabled = options.enableWarmup ?? runtime === DEFAULT_RUNTIME;
-    this.warmupTimeoutMs =
-      options.warmupTimeoutMs ?? DEFAULT_WARMUP_TIMEOUT_MS;
+    this.warmupTimeoutMs = options.warmupTimeoutMs ?? DEFAULT_WARMUP_TIMEOUT_MS;
     this.warmupWaitMs = options.warmupWaitMs ?? DEFAULT_WARMUP_WAIT_MS;
   }
 
@@ -235,9 +234,13 @@ export class AppleNotesAdapter implements NotesAdapter {
         new Promise<never>((_, reject) => {
           timer = setTimeout(() => {
             reject(
-              new NotesMcpError('permission_denied', PERMISSION_PROMPT_MESSAGE, {
-                recovery: 'approve_notes_automation',
-              })
+              new NotesMcpError(
+                'permission_denied',
+                PERMISSION_PROMPT_MESSAGE,
+                {
+                  recovery: 'approve_notes_automation',
+                }
+              )
             );
           }, this.warmupWaitMs);
         }),
@@ -262,13 +265,9 @@ export class AppleNotesAdapter implements NotesAdapter {
     }
 
     if (/not authorized to send apple events|-1743/i.test(detail)) {
-      return new NotesMcpError(
-        'permission_denied',
-        PERMISSION_DENIED_MESSAGE,
-        {
-          recovery: 'enable_notes_automation_in_system_settings',
-        }
-      );
+      return new NotesMcpError('permission_denied', PERMISSION_DENIED_MESSAGE, {
+        recovery: 'enable_notes_automation_in_system_settings',
+      });
     }
 
     return error;
@@ -482,9 +481,7 @@ export class AppleNotesAdapter implements NotesAdapter {
       'end tell',
     ].join('\n');
 
-    const folderId = String(
-      await this.runAppleScript(scriptLines)
-    ).trim();
+    const folderId = String(await this.runAppleScript(scriptLines)).trim();
     const folder = await this.getFolderById(folderId);
     if (!folder) {
       throw new NotesMcpError(

@@ -15,10 +15,7 @@ export interface ScriptRunOptions {
 
 export interface ScriptRuntime {
   runJxa<T>(script: string, options?: ScriptRunOptions): Promise<T>;
-  runAppleScript(
-    script: string,
-    options?: ScriptRunOptions
-  ): Promise<string>;
+  runAppleScript(script: string, options?: ScriptRunOptions): Promise<string>;
 }
 
 async function runScript(

@@ -1,101 +1,101 @@
-Apple Notes MCP
+# Apple Notes MCP
 
-Local-only MCP server for Apple Notes on macOS. It is designed for `stdio` clients such as Claude Desktop, Codex, Cursor, Continue, and similar local MCP hosts.
+Apple Notes MCP is a local MCP server for macOS that lets AI agents work with Apple Notes through a safe, explicit tool surface.
 
-This server is built around a simple rule set:
+It is designed for agents such as Codex, Claude Desktop, Cursor, Continue, and other MCP clients that can launch a local `stdio` server.
 
-- read Apple Notes using normalized plaintext plus optional raw Apple Notes HTML
-- mutate notes and folders only through explicit tools
-- block destructive deletes by default unless the process is started with delete permission or the client supports MCP elicitation confirmation
-- avoid brittle formatting helpers that depend on string surgery over Notes HTML
+## What It Does
 
-Requirements
+- Lists Apple Notes accounts and folders
+- Reads notes as normalized plaintext with optional raw Apple Notes HTML
+- Creates, updates, moves, and deletes notes
+- Creates, renames, and deletes folders
+- Exposes read-only resources and reusable prompts for note review and rewrite workflows
+
+## Requirements
 
 - macOS
-- Node 22+
+- Node.js 22 or newer
 - Apple Notes enabled locally
-- Automation permission for `osascript` / your MCP host to control Notes
+- macOS Automation permission for the host app that launches the MCP server
 
-Install
+## Install For AI Agents
 
-```bash
-npm install
-npm run build
-```
-
-Run
+Use `npx`. You do not need to clone this repository to use the published package.
 
 ```bash
-node dist/index.js
+npx -y @rnto1/apple-notes-mcp
 ```
 
-Run with `npx`
+That command starts the MCP server over `stdio`.
 
-Once published to npm, you can launch it directly:
+## MCP Client Configuration
 
-```bash
-npx @rnto1/apple-notes-mcp
+Use the published `npx` package in your MCP client config.
+
+### Codex
+
+Add this to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.apple-notes]
+command = "npx"
+args = ["-y", "@rnto1/apple-notes-mcp"]
 ```
 
-The package exposes the `apple-notes-mcp` bin and ships prebuilt `dist/` output in the tarball.
+### Claude Desktop
 
-For local verification before publishing:
+Add this to your Claude Desktop MCP config:
 
-```bash
-npm pack
-npx -y ./rnto1-apple-notes-mcp-0.3.0.tgz --help
+```json
+{
+  "mcpServers": {
+    "apple-notes": {
+      "command": "npx",
+      "args": ["-y", "@rnto1/apple-notes-mcp"]
+    }
+  }
+}
 ```
 
-For GitHub-based installs, `prepare` and `prepack` rebuild the package automatically so the CLI entrypoint still resolves.
+### Other MCP Clients
 
-CLI flags
+Use the same command/args pair:
 
-- `--help`
-- `--version`
+```json
+{
+  "command": "npx",
+  "args": ["-y", "@rnto1/apple-notes-mcp"]
+}
+```
 
-Environment
+## Environment Variables
+
+These can be set in the environment of the MCP host.
 
 - `NOTES_MCP_ALLOW_WRITES=0|1`
   - Default: `1`
   - Set to `0` for read-only mode.
 - `NOTES_MCP_ALLOW_DELETES=0|1`
   - Default: `0`
-  - Set to `1` to allow `notes_delete` and `folders_delete` without an interactive MCP confirmation flow.
+  - Set to `1` to allow destructive deletes without interactive confirmation.
 
-Client configuration
+Example with writes disabled:
 
-Claude Desktop example:
-
-```json
-{
-  "mcpServers": {
-    "apple-notes": {
-      "command": "node",
-      "args": ["/absolute/path/to/apple-notes-mcp/dist/index.js"]
-    }
-  }
-}
+```toml
+[mcp_servers.apple-notes]
+command = "env"
+args = [
+  "NOTES_MCP_ALLOW_WRITES=0",
+  "npx",
+  "-y",
+  "@rnto1/apple-notes-mcp"
+]
 ```
 
-For development, you can point a client at `tsx` instead:
+## Tool Surface
 
-```json
-{
-  "mcpServers": {
-    "apple-notes": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/apple-notes-mcp/node_modules/tsx/dist/cli.js",
-        "src/index.ts"
-      ]
-    }
-  }
-}
-```
-
-Public MCP surface
-
-Tools
+### Tools
 
 - `server_status`
 - `accounts_list`
@@ -112,21 +112,21 @@ Tools
 - `notes_move`
 - `notes_delete`
 
-Resources
+### Resources
 
 - `applenotes://policy`
 - `applenotes://accounts`
 - `applenotes://folders`
 - `applenotes://notes/{id}`
 
-Prompts
+### Prompts
 
 - `review-note`
 - `rewrite-note`
 
-Content contract
+## Content Model
 
-Reads return note metadata with canonical content:
+Reads return structured note metadata plus normalized content:
 
 - `id`
 - `title`
@@ -140,11 +140,11 @@ Reads return note metadata with canonical content:
 - `content.format`
 - `content.html` only when explicitly requested
 
-Write operations are explicit:
+Writes are explicit:
 
 - `notes_create`
   - accepts `title`
-  - accepts `content` as either `{ "format": "plain_text", "text": "..." }` or `{ "format": "apple_html", "html": "..." }`
+  - accepts `content`
   - accepts `folderId` or `folderPath`
 - `notes_update`
   - accepts `title`
@@ -152,32 +152,79 @@ Write operations are explicit:
 - `notes_move`
   - accepts `toFolderId`
 
-Safety model
+## Safety Model
 
-- writes are enabled by default for trusted local use
-- destructive deletes are not enabled by default
-- if your client supports MCP elicitation, the server can request confirmation for deletes
-- if your client does not support elicitation, deletes require `NOTES_MCP_ALLOW_DELETES=1`
+- Writes are enabled by default for trusted local use.
+- Destructive deletes are disabled by default.
+- If the MCP client supports elicitation, the server can request delete confirmation.
+- If the client does not support elicitation, destructive deletes require `NOTES_MCP_ALLOW_DELETES=1`.
 
-Testing
+## Limitations
 
-```bash
-npm test
-npm run lint
-npm run typecheck
-```
+- This server is `stdio`-only.
+- Apple Notes automation is limited by the Notes scripting interface on macOS.
+- Rich range formatting, attachments, collaboration controls, locking, and other UI-only Notes features are intentionally out of scope.
+- If the same folder path exists in multiple accounts, provide `accountId`.
 
-`npm test` builds the server first, then runs Node’s native test runner.
-
-Limitations
-
-- This server is `stdio`-only in this release.
-- Apple Notes automation is limited by the Notes scripting interface.
-- Rich range-based formatting, attachments, collaboration controls, locking, and other UI-only behaviors are intentionally out of scope.
-- Folder paths are slash-delimited; if the same path exists in multiple accounts, provide `accountId`.
-
-Troubleshooting
+## Troubleshooting
 
 - On first use, macOS may ask for Automation permission to control Notes.
-- If the server starts but tools fail, open Notes.app once and let sync finish.
-- If a delete is rejected, either confirm it through a client that supports MCP elicitation or restart with `NOTES_MCP_ALLOW_DELETES=1`.
+- If tools fail, open Notes.app once and let sync finish.
+- If a delete is rejected, either confirm it through a client that supports MCP elicitation or restart the MCP host with `NOTES_MCP_ALLOW_DELETES=1`.
+- If your MCP client caches server metadata, restart the client after upgrading the package.
+
+## Contributing
+
+### Local Development
+
+Clone the repository and install dependencies:
+
+```bash
+npm install
+```
+
+Run the full checks:
+
+```bash
+npm run ci
+```
+
+Useful commands:
+
+```bash
+npm run build
+npm run test
+npm run lint
+npm run format
+```
+
+### Development Server
+
+For local development you can run the TypeScript entrypoint directly:
+
+```bash
+npm run dev
+```
+
+For a local packed-package check:
+
+```bash
+npm pack
+```
+
+### Release Process
+
+Releases are automated through GitHub Actions and Changesets.
+
+- Changes merged to `main` trigger the release workflow.
+- The workflow prepares a release via Changesets.
+- npm publishing uses provenance.
+
+Repository maintainers must ensure the required GitHub secrets exist:
+
+- `NPM_TOKEN`
+- `RELEASE_PR_TOKEN`
+
+## License
+
+MIT

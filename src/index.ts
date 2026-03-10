@@ -8,6 +8,7 @@ import {
   listFolders,
   listNotes,
   updateNote,
+  ensureFolder,
 } from "./notes.js";
 
 const server = new McpServer(
@@ -29,6 +30,19 @@ server.registerTool(
   async () => {
     const folders = await listFolders();
     return { content: [{ type: "text", text: JSON.stringify(folders) }] };
+  }
+);
+
+server.registerTool(
+  "folders.ensure",
+  {
+    title: "Ensure Folder",
+    description: "Ensure a folder path exists (e.g., 'mcp' or 'parent/child').",
+    inputSchema: z.object({ path: z.string() }),
+  },
+  async (args) => {
+    const folder = await ensureFolder(args.path);
+    return { content: [{ type: "text", text: JSON.stringify(folder) }] };
   }
 );
 

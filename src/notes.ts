@@ -36,6 +36,33 @@ export async function listFolders(): Promise<FolderInfo[]> {
   return runJxa<FolderInfo[]>(script);
 }
 
+export async function ensureFolder(path: string): Promise<FolderInfo> {
+  const script = `
+    const Notes = Application('Notes');
+    function ensurePath(p) {
+      const parts = String(p).split('/').filter(Boolean);
+      let parent = Notes.defaultAccount();
+      let folder = null;
+      for (const part of parts) {
+        const list = parent.folders();
+        folder = null;
+        for (let i=0;i<list.length;i++) {
+          if (String(list[i].name()) === part) { folder = list[i]; break; }
+        }
+        if (!folder) {
+          folder = Notes.make({ new: Notes.Folder, at: parent, withProperties: { name: part } });
+        }
+        parent = folder;
+      }
+      return folder;
+    }
+    const f = ensurePath("${esc(path)}");
+    const accountName = (f.account && typeof f.account === 'function') ? f.account().name() : Notes.defaultAccount().name();
+    JSON.stringify({ id: f.id(), name: f.name(), account: accountName });
+  `;
+  return runJxa<FolderInfo>(script);
+}
+
 export async function listNotes(params: { folderId?: string; query?: string; limit?: number }): Promise<NoteInfo[]> {
   const { folderId, query, limit = 100 } = params;
   const q = query ? esc(query) : "";
@@ -137,4 +164,3 @@ export async function deleteNote(id: string): Promise<boolean> {
   `;
   return runJxa<boolean>(script);
 }
-

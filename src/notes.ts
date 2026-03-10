@@ -376,17 +376,25 @@ export async function searchNotes(params: { query: string; inBody?: boolean; lim
   if (!inBody) {
     return listNotes({ query, limit });
   }
-  // Body search: collect candidates and filter by HTML string match
+  // Body search with bounded concurrency
   const candidates = await listNotes({ query: undefined, limit: 1000 });
   const results: NoteDetail[] = [];
-  for (const c of candidates) {
-    const d = await getNote(c.id);
-    if (d && d.body.toLowerCase().includes(query.toLowerCase())) {
-      results.push(d);
-      if (results.length >= limit) break;
+  const q = query.toLowerCase();
+  const concurrency = 8;
+  let idx = 0;
+  async function worker() {
+    while (idx < candidates.length && results.length < limit) {
+      const i = idx++;
+      const c = candidates[i];
+      const d = await getNote(c.id);
+      if (d && d.body.toLowerCase().includes(q)) {
+        results.push(d);
+      }
     }
   }
-  return results;
+  const workers = Array.from({ length: concurrency }, () => worker());
+  await Promise.all(workers);
+  return results.slice(0, limit);
 }
 
 export async function addLink(params: { id: string; url: string; text?: string }): Promise<NoteDetail | null> {

@@ -1,4 +1,5 @@
 import { runJxa, runAppleScript } from './jxa.js';
+import { withNotesTraversal } from './notes-jxa.js';
 
 export interface FolderInfo {
   id: string;
@@ -27,16 +28,16 @@ function js(str: string): string {
 }
 
 export async function listFolders(): Promise<FolderInfo[]> {
-  const script = `
-    const Notes = Application('Notes');
-    const out = [];
-    Notes.accounts().forEach(a => {
-      a.folders().forEach(f => {
-        out.push({ id: f.id(), name: f.name(), account: a.name() });
-      });
+  const script = withNotesTraversal(`
+    const out = allFolders(Notes).map(function (folder) {
+      return {
+        id: folder.id(),
+        name: folder.name(),
+        account: folder.account().name(),
+      };
     });
     JSON.stringify(out);
-  `;
+  `);
   return runJxa<FolderInfo[]>(script);
 }
 
@@ -67,8 +68,7 @@ export async function ensureFolder(path: string): Promise<FolderInfo> {
   }
 
   // Retrieve the folder info via JXA
-  const script = `
-    const Notes = Application('Notes');
+  const script = withNotesTraversal(`
     function findPath(p) {
       const parts = String(p).split('/').filter(Boolean);
       let parent = Notes.defaultAccount();
@@ -86,7 +86,7 @@ export async function ensureFolder(path: string): Promise<FolderInfo> {
     }
     const f = findPath("${esc(path)}");
     if (!f) { JSON.stringify(null); } else { JSON.stringify({ id: f.id(), name: f.name(), account: f.account().name() }); }
-  `;
+  `);
   const out = await runJxa<FolderInfo | null>(script);
   if (!out) throw new Error('failed to ensure folder');
   return out;
@@ -128,20 +128,14 @@ export async function appendTextToNote(params: {
   text: string;
 }): Promise<NoteDetail | null> {
   const { id, text } = params;
-  const script = `
-    const Notes = Application('Notes');
-    function locate(id) {
-      let hit = null;
-      Notes.accounts().some(a => a.folders().some(f => f.notes().some(n => { if (String(n.id()) === String(id)) { hit = { n, f }; return true; } return false; })));
-      return hit;
-    }
-    const found = locate("${esc(id)}");
+  const script = withNotesTraversal(`
+    const found = findNoteWithFolderById(Notes, "${esc(id)}");
     if (!found) { JSON.stringify(null); return; }
     const { n, f } = found;
     n.body = String(n.body()) + ${js(text)};
     const out = { id: n.id(), name: n.name(), body: String(n.body()), modificationDate: (n.modificationDate() ? n.modificationDate().toISOString() : undefined), folderId: f.id() };
     JSON.stringify(out);
-  `;
+  `);
   return runJxa<NoteDetail | null>(script);
 }
 
@@ -156,20 +150,14 @@ export async function addChecklist(params: {
         `<div><input type=\"checkbox\"${i.checked ? ' checked' : ''}> ${esc(i.text)}</div>`
     )
     .join('');
-  const script = `
-    const Notes = Application('Notes');
-    function locate(id) {
-      let hit = null;
-      Notes.accounts().some(a => a.folders().some(f => f.notes().some(n => { if (String(n.id()) === String(id)) { hit = { n, f }; return true; } return false; })));
-      return hit;
-    }
-    const found = locate("${esc(id)}");
+  const script = withNotesTraversal(`
+    const found = findNoteWithFolderById(Notes, "${esc(id)}");
     if (!found) { JSON.stringify(null); return; }
     const { n, f } = found;
     n.body = String(n.body()) + ${js(htmlItems)};
     const out = { id: n.id(), name: n.name(), body: String(n.body()), modificationDate: (n.modificationDate() ? n.modificationDate().toISOString() : undefined), folderId: f.id() };
     JSON.stringify(out);
-  `;
+  `);
   return runJxa<NoteDetail | null>(script);
 }
 
@@ -182,14 +170,8 @@ export async function applyFormat(params: {
     mode === 'bold_all' ? '<b>' : mode === 'italic_all' ? '<i>' : '<pre>';
   const close =
     mode === 'bold_all' ? '</b>' : mode === 'italic_all' ? '</i>' : '</pre>';
-  const script = `
-    const Notes = Application('Notes');
-    function locate(id) {
-      let hit = null;
-      Notes.accounts().some(a => a.folders().some(f => f.notes().some(n => { if (String(n.id()) === String(id)) { hit = { n, f }; return true; } return false; })));
-      return hit;
-    }
-    const found = locate("${esc(id)}");
+  const script = withNotesTraversal(`
+    const found = findNoteWithFolderById(Notes, "${esc(id)}");
     if (!found) { JSON.stringify(null); return; }
     const { n, f } = found;
     const raw = String(n.body());
@@ -197,7 +179,7 @@ export async function applyFormat(params: {
     n.body = "${open}" + raw + "${close}";
     const out = { id: n.id(), name: n.name(), body: String(n.body()), modificationDate: (n.modificationDate() ? n.modificationDate().toISOString() : undefined), folderId: f.id() };
     JSON.stringify(out);
-  `;
+  `);
   return runJxa<NoteDetail | null>(script);
 }
 
@@ -208,15 +190,9 @@ export async function listNotes(params: {
 }): Promise<NoteInfo[]> {
   const { folderId, query, limit = 100 } = params;
   const q = query ? esc(query) : '';
-  const script = `
-    const Notes = Application('Notes');
-    function folderById(id) {
-      let hit = null;
-      Notes.accounts().some(a => a.folders().some(f => { if (String(f.id()) === String(id)) { hit = f; return true; } return false; }));
-      return hit;
-    }
+  const script = withNotesTraversal(`
     const items = [];
-    const targetFolders = ("${folderId ?? ''}" ? [folderById("${folderId ?? ''}")] : Notes.accounts().flatMap(a => a.folders()));
+    const targetFolders = ("${folderId ?? ''}" ? [findFolderById(Notes, "${folderId ?? ''}")] : allFolders(Notes));
     targetFolders.filter(Boolean).forEach(f => {
       f.notes().forEach(n => {
         const info = { id: n.id(), name: n.name(), modificationDate: (n.modificationDate() ? n.modificationDate().toISOString() : undefined), folderId: f.id() };
@@ -227,24 +203,18 @@ export async function listNotes(params: {
     ${q ? `res = res.filter(it => (it.name || '').toLowerCase().includes("${q.toLowerCase()}") );` : ''}
     res = res.sort((a,b) => String(b.modificationDate||'').localeCompare(String(a.modificationDate||''))).slice(0, ${limit});
     JSON.stringify(res);
-  `;
+  `);
   return runJxa<NoteInfo[]>(script);
 }
 
 export async function getNote(id: string): Promise<NoteDetail | null> {
-  const script = `
-    const Notes = Application('Notes');
-    function noteById(id) {
-      let hit = null;
-      Notes.accounts().some(a => a.folders().some(f => f.notes().some(n => { if (String(n.id()) === String(id)) { hit = { n, f }; return true; } return false; })));
-      return hit;
-    }
-    const found = noteById("${esc(id)}");
+  const script = withNotesTraversal(`
+    const found = findNoteWithFolderById(Notes, "${esc(id)}");
     if (!found) { JSON.stringify(null); return; }
     const { n, f } = found;
     const out = { id: n.id(), name: n.name(), body: String(n.body()), modificationDate: (n.modificationDate() ? n.modificationDate().toISOString() : undefined), folderId: f.id() };
     JSON.stringify(out);
-  `;
+  `);
   return runJxa<NoteDetail | null>(script);
 }
 
@@ -260,12 +230,10 @@ export async function createNote(params: {
     : `default folder of default account`;
   const as = `tell application \"Notes\" to make new note with properties {name:\"${esc(title)}\", body:\"${esc(body)}\"} at ${target}`;
   await runAppleScript(as);
-  const js = `
-    const Notes = Application('Notes');
+  const js = withNotesTraversal(`
     function resolveTarget() {
       if ('${params.folderId ?? ''}') {
-        let hit=null; Notes.accounts().some(a=>a.folders().some(f=>{ if(String(f.id())==='${esc(params.folderId ?? '')}'){ hit=f; return true;} return false; }));
-        return hit;
+        return findFolderById(Notes, '${esc(params.folderId ?? '')}');
       }
       return Notes.defaultAccount().defaultFolder();
     }
@@ -276,7 +244,7 @@ export async function createNote(params: {
     if (!picked && list.length>0) picked = list[0];
     const out = picked ? { id: picked.id(), name: picked.name(), body: String(picked.body()), modificationDate: (picked.modificationDate() ? picked.modificationDate().toISOString() : undefined), folderId: f.id() } : null;
     JSON.stringify(out);
-  `;
+  `);
   const out = await runJxa<NoteDetail | null>(js);
   if (!out) throw new Error('failed to create note');
   return out;
@@ -312,18 +280,13 @@ export async function updateNote(params: {
 }
 
 export async function deleteNote(id: string): Promise<boolean> {
-  const script = `
-    const Notes = Application('Notes');
-    function byId(id) {
-      let hit = null;
-      Notes.accounts().some(a => a.folders().some(f => f.notes().some(n => { if (String(n.id()) === String(id)) { hit = n; return true; } return false; })));
-      return hit;
-    }
-    const n = byId("${esc(id)}");
+  const script = withNotesTraversal(`
+    const found = findNoteWithFolderById(Notes, "${esc(id)}");
+    const n = found ? found.n : null;
     if (!n) { JSON.stringify(false); return; }
     Notes.delete(n);
     JSON.stringify(true);
-  `;
+  `);
   return runJxa<boolean>(script);
 }
 
@@ -333,18 +296,7 @@ export async function moveNote(params: {
   toPath?: string;
 }): Promise<NoteDetail | null> {
   const { id, toFolderId, toPath } = params;
-  const script = `
-    const Notes = Application('Notes');
-    function noteById(id) {
-      let hit = null;
-      Notes.accounts().some(a => a.folders().some(f => f.notes().some(n => { if (String(n.id()) === String(id)) { hit = n; return true; } return false; })));
-      return hit;
-    }
-    function folderById(id) {
-      let hit = null;
-      Notes.accounts().some(a => a.folders().some(f => { if (String(f.id()) === String(id)) { hit = f; return true; } return false; }));
-      return hit;
-    }
+  const script = withNotesTraversal(`
     function folderByPath(p) {
       const parts = String(p).split('/').filter(Boolean);
       let parent = Notes.defaultAccount();
@@ -360,23 +312,27 @@ export async function moveNote(params: {
       }
       return folder;
     }
-    const n = noteById("${esc(id)}");
-    const dest = ${toFolderId ? `folderById("${esc(toFolderId)}")` : toPath ? `folderByPath("${esc(toPath)}")` : 'null'};
+    const found = findNoteWithFolderById(Notes, "${esc(id)}");
+    const n = found ? found.n : null;
+    const dest = ${toFolderId ? `findFolderById(Notes, "${esc(toFolderId)}")` : toPath ? `folderByPath("${esc(toPath)}")` : 'null'};
     if (!n || !dest) { JSON.stringify(null); return; }
     try { Notes.move(n, { to: dest }); } catch (e) { /* ignore, fallback handled by caller */ }
     const out = { id: n.id(), name: n.name(), body: String(n.body()), modificationDate: (n.modificationDate() ? n.modificationDate().toISOString() : undefined), folderId: dest.id() };
     JSON.stringify(out);
-  `;
+  `);
   const moved = await runJxa<NoteDetail | null>(script);
   if (moved) return moved;
   // Fallback: clone and delete
   const note = await getNote(id);
   if (!note) return null;
-  const folder = toFolderId ? { folderId: toFolderId } : toPath ? {} : {};
+  let resolvedFolderId = toFolderId;
+  if (!resolvedFolderId && toPath) {
+    resolvedFolderId = (await ensureFolder(toPath)).id;
+  }
   const created = await createNote({
     title: note.name,
     body: note.body,
-    ...(toFolderId ? { folderId: toFolderId } : {}),
+    ...(resolvedFolderId ? { folderId: resolvedFolderId } : {}),
   });
   await deleteNote(id);
   return created;

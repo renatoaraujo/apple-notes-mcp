@@ -1,6 +1,6 @@
 {
   "name": "@rnto1/apple-notes-mcp",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": false,
   "type": "module",
   "bin": {

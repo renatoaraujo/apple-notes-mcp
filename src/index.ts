@@ -9,6 +9,10 @@ import {
   listNotes,
   updateNote,
   ensureFolder,
+  deleteFolder,
+  appendTextToNote,
+  addChecklist,
+  applyFormat,
 } from "./notes.js";
 
 const server = new McpServer(
@@ -43,6 +47,61 @@ server.registerTool(
   async (args) => {
     const folder = await ensureFolder(args.path);
     return { content: [{ type: "text", text: JSON.stringify(folder) }] };
+  }
+);
+
+server.registerTool(
+  "folders.delete",
+  {
+    title: "Delete Folder",
+    description: "Delete a folder by nested path (e.g., 'parent/child').",
+    inputSchema: z.object({ path: z.string() }),
+  },
+  async (args) => {
+    const ok = await deleteFolder(args.path);
+    return { content: [{ type: "text", text: JSON.stringify({ ok }) }] };
+  }
+);
+
+server.registerTool(
+  "notes.append_text",
+  {
+    title: "Append Text",
+    description: "Append plain text to a note body.",
+    inputSchema: z.object({ id: z.string(), text: z.string() }),
+  },
+  async (args) => {
+    const note = await appendTextToNote({ id: args.id, text: args.text });
+    return { content: [{ type: "text", text: JSON.stringify(note) }] };
+  }
+);
+
+server.registerTool(
+  "notes.add_checklist",
+  {
+    title: "Add Checklist",
+    description: "Append checklist items to a note.",
+    inputSchema: z.object({
+      id: z.string(),
+      items: z.array(z.object({ text: z.string(), checked: z.boolean().optional() })),
+    }),
+  },
+  async (args) => {
+    const note = await addChecklist({ id: args.id, items: args.items });
+    return { content: [{ type: "text", text: JSON.stringify(note) }] };
+  }
+);
+
+server.registerTool(
+  "notes.apply_format",
+  {
+    title: "Apply Format",
+    description: "Apply simple formatting to entire note body.",
+    inputSchema: z.object({ id: z.string(), mode: z.enum(["bold_all", "italic_all", "monospace_all"]) }),
+  },
+  async (args) => {
+    const note = await applyFormat({ id: args.id, mode: args.mode });
+    return { content: [{ type: "text", text: JSON.stringify(note) }] };
   }
 );
 

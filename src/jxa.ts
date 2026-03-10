@@ -42,3 +42,22 @@ export async function runJxa<T = unknown>(script: string): Promise<T> {
   }
 }
 
+export async function runAppleScript(script: string): Promise<string> {
+  const proc = spawn("osascript", [], { stdio: ["pipe", "pipe", "pipe"] });
+  const chunks: Buffer[] = [];
+  const errChunks: Buffer[] = [];
+  proc.stdout.on("data", (d) => chunks.push(Buffer.from(d)));
+  proc.stderr.on("data", (d) => errChunks.push(Buffer.from(d)));
+  proc.stdin.write(script);
+  proc.stdin.end();
+  const code: number = await new Promise((resolve, reject) => {
+    proc.on("error", reject);
+    proc.on("close", (c) => resolve(c ?? 1));
+  });
+  const stdout = Buffer.concat(chunks).toString("utf8").trim();
+  const stderr = Buffer.concat(errChunks).toString("utf8").trim();
+  if (code !== 0) {
+    throw new JxaError(`osascript (AppleScript) exited with code ${code}`, stderr || stdout);
+  }
+  return stdout;
+}

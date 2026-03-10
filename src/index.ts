@@ -29,6 +29,26 @@ export function assertSupportedPlatform(platform = process.platform) {
   }
 }
 
+function readBooleanEnv(
+  env: NodeJS.ProcessEnv,
+  name: string,
+  defaultValue: boolean
+): boolean {
+  const value = env[name];
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  if (value === '1') {
+    return true;
+  }
+  if (value === '0') {
+    return false;
+  }
+
+  return defaultValue;
+}
+
 export async function main(argv = process.argv.slice(2)) {
   const args = parseCliArgs(argv);
   if (args.version) {
@@ -45,6 +65,7 @@ export async function main(argv = process.argv.slice(2)) {
         'Environment:',
         '  NOTES_MCP_ALLOW_WRITES=0|1    Disable or enable write operations (default: 1).',
         '  NOTES_MCP_ALLOW_DELETES=0|1   Allow destructive delete tools without interactive confirmation (default: 0).',
+        '  NOTES_MCP_WARMUP=0|1          Trigger Notes/Automation readiness on startup (default: 1).',
       ].join('\n')
     );
     return;
@@ -52,8 +73,13 @@ export async function main(argv = process.argv.slice(2)) {
 
   assertSupportedPlatform();
 
+  const adapter = new AppleNotesAdapter(undefined, {
+    enableWarmup: readBooleanEnv(process.env, 'NOTES_MCP_WARMUP', true),
+  });
+  void adapter.warmup().catch(() => {});
+
   const server = createNotesServer({
-    adapter: new AppleNotesAdapter(),
+    adapter,
     policy: new SafetyPolicy(loadPolicyConfig()),
   });
   const transport = new StdioServerTransport();

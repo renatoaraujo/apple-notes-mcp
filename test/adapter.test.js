@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AppleNotesAdapter } from '../dist/adapter.js';
+import { JxaError } from '../dist/jxa.js';
 
 function makeSnapshot({
   accounts = [
@@ -200,5 +201,49 @@ test('searchNotes searches title and plaintext body without index storage', asyn
   assert.deepEqual(
     results.map((entry) => entry.id),
     ['note-1']
+  );
+});
+
+test('listAccounts fails fast with guidance while warmup approval is pending', async () => {
+  const runtime = new FakeRuntime();
+  runtime.appleResponses.push(new Promise(() => {}));
+
+  const adapter = new AppleNotesAdapter(runtime, {
+    enableWarmup: true,
+    warmupWaitMs: 10,
+  });
+
+  await assert.rejects(
+    () => adapter.listAccounts(),
+    (error) => {
+      assert.equal(error.code, 'permission_denied');
+      assert.match(error.message, /Automation prompt/);
+      return true;
+    }
+  );
+
+  assert.match(runtime.appleScripts[0], /tell application "Notes"/);
+  assert.match(runtime.appleScripts[0], /activate/);
+  assert.equal(runtime.jxaScripts.length, 0);
+});
+
+test('listAccounts maps Apple Events denial to permission_denied', async () => {
+  const runtime = new FakeRuntime();
+  runtime.jxaResponses.push(() => {
+    throw new JxaError(
+      'osascript exited with code 1',
+      'Not authorized to send Apple events to Notes. (-1743)'
+    );
+  });
+
+  const adapter = new AppleNotesAdapter(runtime, { enableWarmup: false });
+
+  await assert.rejects(
+    () => adapter.listAccounts(),
+    (error) => {
+      assert.equal(error.code, 'permission_denied');
+      assert.match(error.message, /System Settings/);
+      return true;
+    }
   );
 });

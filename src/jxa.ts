@@ -9,9 +9,13 @@ export class JxaError extends Error {
   }
 }
 
+export interface ScriptRunOptions {
+  timeoutMs?: number;
+}
+
 export interface ScriptRuntime {
-  runJxa<T>(script: string): Promise<T>;
-  runAppleScript(script: string): Promise<string>;
+  runJxa<T>(script: string, options?: ScriptRunOptions): Promise<T>;
+  runAppleScript(script: string, options?: ScriptRunOptions): Promise<string>;
 }
 
 async function runScript(
@@ -58,8 +62,15 @@ async function runScript(
   return stdout;
 }
 
-export async function runJxa<T = unknown>(script: string): Promise<T> {
-  const stdout = await runScript(['-l', 'JavaScript'], script);
+export async function runJxa<T = unknown>(
+  script: string,
+  options?: ScriptRunOptions
+): Promise<T> {
+  const stdout = await runScript(
+    ['-l', 'JavaScript'],
+    script,
+    options?.timeoutMs
+  );
 
   try {
     return JSON.parse(stdout) as T;
@@ -68,6 +79,9 @@ export async function runJxa<T = unknown>(script: string): Promise<T> {
   }
 }
 
-export async function runAppleScript(script: string): Promise<string> {
-  return runScript([], script);
+export async function runAppleScript(
+  script: string,
+  options?: ScriptRunOptions
+): Promise<string> {
+  return runScript([], script, options?.timeoutMs);
 }

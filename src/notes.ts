@@ -1,4 +1,4 @@
-import { runJxa, runAppleScript } from "./jxa.js";
+import { runJxa, runAppleScript } from './jxa.js';
 
 export interface FolderInfo {
   id: string;
@@ -19,7 +19,7 @@ export interface NoteDetail extends NoteInfo {
 
 function esc(str: string): string {
   // Escape backticks within template literals used in JXA script
-  return str.replaceAll("`", "\\`");
+  return str.replaceAll('`', '\\`');
 }
 function js(str: string): string {
   // Safely embed arbitrary text into JXA by JSON stringifying
@@ -41,13 +41,14 @@ export async function listFolders(): Promise<FolderInfo[]> {
 }
 
 export async function ensureFolder(path: string): Promise<FolderInfo> {
-  const parts = path.split("/").filter(Boolean);
-  if (parts.length === 0) throw new Error("empty folder path");
+  const parts = path.split('/').filter(Boolean);
+  if (parts.length === 0) throw new Error('empty folder path');
   // Build AppleScript to idempotently ensure each level exists
-  const escAS = (s: string) => s.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"");
+  const escAS = (s: string) =>
+    s.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
   const lines: string[] = [
     'tell application "Notes"',
-    '  set targetAcc to default account'
+    '  set targetAcc to default account',
   ];
   let chain = 'targetAcc';
   for (let i = 0; i < parts.length; i++) {
@@ -59,7 +60,11 @@ export async function ensureFolder(path: string): Promise<FolderInfo> {
     chain = 'parentFolder';
   }
   lines.push('end tell');
-  try { await runAppleScript(lines.join("\n")); } catch { /* ignore and proceed to lookup */ }
+  try {
+    await runAppleScript(lines.join('\n'));
+  } catch {
+    /* ignore and proceed to lookup */
+  }
 
   // Retrieve the folder info via JXA
   const script = `
@@ -83,37 +88,45 @@ export async function ensureFolder(path: string): Promise<FolderInfo> {
     if (!f) { JSON.stringify(null); } else { JSON.stringify({ id: f.id(), name: f.name(), account: f.account().name() }); }
   `;
   const out = await runJxa<FolderInfo | null>(script);
-  if (!out) throw new Error("failed to ensure folder");
+  if (!out) throw new Error('failed to ensure folder');
   return out;
 }
 
 export async function deleteFolder(path: string): Promise<boolean> {
-  const parts = path.split("/").filter(Boolean);
-  if (parts.length === 0) throw new Error("empty folder path");
-  const escAS = (s: string) => s.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"");
+  const parts = path.split('/').filter(Boolean);
+  if (parts.length === 0) throw new Error('empty folder path');
+  const escAS = (s: string) =>
+    s.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
   const lines: string[] = [
     'tell application "Notes"',
-    '  set targetAcc to default account'
+    '  set targetAcc to default account',
   ];
   let chain = 'targetAcc';
   for (let i = 0; i < parts.length - 1; i++) {
     const name = escAS(parts[i]);
-    lines.push(`  if not (exists folder "${name}" of ${chain}) then error "Folder path not found"`);
+    lines.push(
+      `  if not (exists folder "${name}" of ${chain}) then error "Folder path not found"`
+    );
     lines.push(`  set parentFolder to folder "${name}" of ${chain}`);
     chain = 'parentFolder';
   }
   const leaf = escAS(parts[parts.length - 1]);
-  lines.push(`  if (exists folder "${leaf}" of ${chain}) then delete folder "${leaf}" of ${chain}`);
+  lines.push(
+    `  if (exists folder "${leaf}" of ${chain}) then delete folder "${leaf}" of ${chain}`
+  );
   lines.push('end tell');
   try {
-    await runAppleScript(lines.join("\n"));
+    await runAppleScript(lines.join('\n'));
     return true;
   } catch {
     return false;
   }
 }
 
-export async function appendTextToNote(params: { id: string; text: string }): Promise<NoteDetail | null> {
+export async function appendTextToNote(params: {
+  id: string;
+  text: string;
+}): Promise<NoteDetail | null> {
   const { id, text } = params;
   const script = `
     const Notes = Application('Notes');
@@ -132,9 +145,17 @@ export async function appendTextToNote(params: { id: string; text: string }): Pr
   return runJxa<NoteDetail | null>(script);
 }
 
-export async function addChecklist(params: { id: string; items: { text: string; checked?: boolean }[] }): Promise<NoteDetail | null> {
+export async function addChecklist(params: {
+  id: string;
+  items: { text: string; checked?: boolean }[];
+}): Promise<NoteDetail | null> {
   const { id, items } = params;
-  const htmlItems = items.map(i => `<div><input type=\"checkbox\"${i.checked ? ' checked' : ''}> ${esc(i.text)}</div>`).join("");
+  const htmlItems = items
+    .map(
+      (i) =>
+        `<div><input type=\"checkbox\"${i.checked ? ' checked' : ''}> ${esc(i.text)}</div>`
+    )
+    .join('');
   const script = `
     const Notes = Application('Notes');
     function locate(id) {
@@ -152,10 +173,15 @@ export async function addChecklist(params: { id: string; items: { text: string; 
   return runJxa<NoteDetail | null>(script);
 }
 
-export async function applyFormat(params: { id: string; mode: 'bold_all' | 'italic_all' | 'monospace_all' }): Promise<NoteDetail | null> {
+export async function applyFormat(params: {
+  id: string;
+  mode: 'bold_all' | 'italic_all' | 'monospace_all';
+}): Promise<NoteDetail | null> {
   const { id, mode } = params;
-  const open = mode === 'bold_all' ? '<b>' : mode === 'italic_all' ? '<i>' : '<pre>';
-  const close = mode === 'bold_all' ? '</b>' : mode === 'italic_all' ? '</i>' : '</pre>';
+  const open =
+    mode === 'bold_all' ? '<b>' : mode === 'italic_all' ? '<i>' : '<pre>';
+  const close =
+    mode === 'bold_all' ? '</b>' : mode === 'italic_all' ? '</i>' : '</pre>';
   const script = `
     const Notes = Application('Notes');
     function locate(id) {
@@ -175,9 +201,13 @@ export async function applyFormat(params: { id: string; mode: 'bold_all' | 'ital
   return runJxa<NoteDetail | null>(script);
 }
 
-export async function listNotes(params: { folderId?: string; query?: string; limit?: number }): Promise<NoteInfo[]> {
+export async function listNotes(params: {
+  folderId?: string;
+  query?: string;
+  limit?: number;
+}): Promise<NoteInfo[]> {
   const { folderId, query, limit = 100 } = params;
-  const q = query ? esc(query) : "";
+  const q = query ? esc(query) : '';
   const script = `
     const Notes = Application('Notes');
     function folderById(id) {
@@ -194,7 +224,7 @@ export async function listNotes(params: { folderId?: string; query?: string; lim
       });
     });
     let res = items;
-    ${q ? `res = res.filter(it => (it.name || '').toLowerCase().includes("${q.toLowerCase()}") );` : ""}
+    ${q ? `res = res.filter(it => (it.name || '').toLowerCase().includes("${q.toLowerCase()}") );` : ''}
     res = res.sort((a,b) => String(b.modificationDate||'').localeCompare(String(a.modificationDate||''))).slice(0, ${limit});
     JSON.stringify(res);
   `;
@@ -218,9 +248,13 @@ export async function getNote(id: string): Promise<NoteDetail | null> {
   return runJxa<NoteDetail | null>(script);
 }
 
-export async function createNote(params: { title?: string; body?: string; folderId?: string }): Promise<NoteDetail> {
-  const title = params.title ?? "";
-  const body = params.body ?? "";
+export async function createNote(params: {
+  title?: string;
+  body?: string;
+  folderId?: string;
+}): Promise<NoteDetail> {
+  const title = params.title ?? '';
+  const body = params.body ?? '';
   const target = params.folderId
     ? `folder id \"${esc(params.folderId)}\"`
     : `default folder of default account`;
@@ -248,22 +282,32 @@ export async function createNote(params: { title?: string; body?: string; folder
   return out;
 }
 
-export async function updateNote(params: { id: string; title?: string; body?: string; append?: boolean }): Promise<NoteDetail | null> {
+export async function updateNote(params: {
+  id: string;
+  title?: string;
+  body?: string;
+  append?: boolean;
+}): Promise<NoteDetail | null> {
   const { id, title, body, append } = params;
-  const escAS = (s: string) => s.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"");
+  const escAS = (s: string) =>
+    s.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
   const lines: string[] = ['tell application "Notes"'];
   if (title !== undefined) {
     lines.push(`  set name of note id \"${escAS(id)}\" to \"${escAS(title)}\"`);
   }
   if (body !== undefined) {
     if (append) {
-      lines.push(`  set body of note id \"${escAS(id)}\" to ((body of note id \"${escAS(id)}\") & \"${escAS(body)}\")`);
+      lines.push(
+        `  set body of note id \"${escAS(id)}\" to ((body of note id \"${escAS(id)}\") & \"${escAS(body)}\")`
+      );
     } else {
-      lines.push(`  set body of note id \"${escAS(id)}\" to \"${escAS(body)}\"`);
+      lines.push(
+        `  set body of note id \"${escAS(id)}\" to \"${escAS(body)}\"`
+      );
     }
   }
   lines.push('end tell');
-  await runAppleScript(lines.join("\n"));
+  await runAppleScript(lines.join('\n'));
   return getNote(id);
 }
 
@@ -283,7 +327,11 @@ export async function deleteNote(id: string): Promise<boolean> {
   return runJxa<boolean>(script);
 }
 
-export async function moveNote(params: { id: string; toFolderId?: string; toPath?: string }): Promise<NoteDetail | null> {
+export async function moveNote(params: {
+  id: string;
+  toFolderId?: string;
+  toPath?: string;
+}): Promise<NoteDetail | null> {
   const { id, toFolderId, toPath } = params;
   const script = `
     const Notes = Application('Notes');
@@ -325,32 +373,50 @@ export async function moveNote(params: { id: string; toFolderId?: string; toPath
   const note = await getNote(id);
   if (!note) return null;
   const folder = toFolderId ? { folderId: toFolderId } : toPath ? {} : {};
-  const created = await createNote({ title: note.name, body: note.body, ...(toFolderId ? { folderId: toFolderId } : {}) });
+  const created = await createNote({
+    title: note.name,
+    body: note.body,
+    ...(toFolderId ? { folderId: toFolderId } : {}),
+  });
   await deleteNote(id);
   return created;
 }
 
-export async function renameFolder(params: { path: string; newName: string }): Promise<FolderInfo | null> {
+export async function renameFolder(params: {
+  path: string;
+  newName: string;
+}): Promise<FolderInfo | null> {
   const { path, newName } = params;
   const parts = path.split('/').filter(Boolean);
   if (parts.length === 0) throw new Error('empty folder path');
-  const escAS = (s: string) => s.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+  const escAS = (s: string) =>
+    s.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
   const lines: string[] = [
     'tell application "Notes"',
-    '  set targetAcc to default account'
+    '  set targetAcc to default account',
   ];
   let chain = 'targetAcc';
-  for (let i=0;i<parts.length-1;i++) {
+  for (let i = 0; i < parts.length - 1; i++) {
     const name = escAS(parts[i]);
-    lines.push(`  if not (exists folder "${name}" of ${chain}) then error "Folder path not found"`);
+    lines.push(
+      `  if not (exists folder "${name}" of ${chain}) then error "Folder path not found"`
+    );
     lines.push(`  set parentFolder to folder "${name}" of ${chain}`);
     chain = 'parentFolder';
   }
   const leaf = escAS(parts[parts.length - 1]);
-  lines.push(`  if not (exists folder "${leaf}" of ${chain}) then error "Folder not found"`);
-  lines.push(`  set name of folder "${leaf}" of ${chain} to "${escAS(newName)}"`);
+  lines.push(
+    `  if not (exists folder "${leaf}" of ${chain}) then error "Folder not found"`
+  );
+  lines.push(
+    `  set name of folder "${leaf}" of ${chain} to "${escAS(newName)}"`
+  );
   lines.push('end tell');
-  try { await runAppleScript(lines.join('\n')); } catch { return null; }
+  try {
+    await runAppleScript(lines.join('\n'));
+  } catch {
+    return null;
+  }
   // Return updated info
   const got = await runJxa<FolderInfo | null>(`
     const Notes = Application('Notes');
@@ -361,7 +427,15 @@ export async function renameFolder(params: { path: string; newName: string }): P
   return got;
 }
 
-export async function listFolderContents(params: { path: string; recursive?: boolean; limit?: number }): Promise<{ folder: FolderInfo; notes: NoteInfo[]; subfolders?: FolderInfo[] }> {
+export async function listFolderContents(params: {
+  path: string;
+  recursive?: boolean;
+  limit?: number;
+}): Promise<{
+  folder: FolderInfo;
+  notes: NoteInfo[];
+  subfolders?: FolderInfo[];
+}> {
   const { path, recursive = false, limit = 500 } = params;
   const script = `
     const Notes = Application('Notes');
@@ -376,12 +450,20 @@ export async function listFolderContents(params: { path: string; recursive?: boo
     }
     JSON.stringify({ folder, notes: notes.slice(0, ${limit}), subfolders });
   `;
-  const out = await runJxa<{ folder: FolderInfo; notes: NoteInfo[]; subfolders?: FolderInfo[] } | null>(script);
+  const out = await runJxa<{
+    folder: FolderInfo;
+    notes: NoteInfo[];
+    subfolders?: FolderInfo[];
+  } | null>(script);
   if (!out) throw new Error('folder not found');
   return out;
 }
 
-export async function searchNotes(params: { query: string; inBody?: boolean; limit?: number }): Promise<NoteInfo[] | NoteDetail[]> {
+export async function searchNotes(params: {
+  query: string;
+  inBody?: boolean;
+  limit?: number;
+}): Promise<NoteInfo[] | NoteDetail[]> {
   const { query, inBody = false, limit = 100 } = params;
   if (!inBody) {
     return listNotes({ query, limit });
@@ -407,13 +489,21 @@ export async function searchNotes(params: { query: string; inBody?: boolean; lim
   return results.slice(0, limit);
 }
 
-export async function addLink(params: { id: string; url: string; text?: string }): Promise<NoteDetail | null> {
+export async function addLink(params: {
+  id: string;
+  url: string;
+  text?: string;
+}): Promise<NoteDetail | null> {
   const { id, url, text } = params;
   const anchor = `<a href=\"${esc(url)}\">${esc(text ?? url)}</a>`;
   return updateNote({ id, body: anchor, append: true });
 }
 
-export async function toggleChecklistItem(params: { id: string; index: number; checked?: boolean }): Promise<NoteDetail | null> {
+export async function toggleChecklistItem(params: {
+  id: string;
+  index: number;
+  checked?: boolean;
+}): Promise<NoteDetail | null> {
   const { id, index, checked } = params;
   const note = await getNote(id);
   if (!note) return null;
@@ -423,18 +513,23 @@ export async function toggleChecklistItem(params: { id: string; index: number; c
     if (i++ !== index) return m;
     const has = /\schecked(=(["'])checked\2)?/.test(m);
     if (checked === undefined) {
-      return has ? m.replace(/\schecked(=(["'])checked\2)?/, "") : m.replace(/<input/, '<input checked');
+      return has
+        ? m.replace(/\schecked(=(["'])checked\2)?/, '')
+        : m.replace(/<input/, '<input checked');
     }
     if (checked) {
       return has ? m : m.replace(/<input/, '<input checked');
     } else {
-      return m.replace(/\schecked(=(["'])checked\2)?/, "");
+      return m.replace(/\schecked(=(["'])checked\2)?/, '');
     }
   });
   return updateNote({ id, body: newBody });
 }
 
-export async function removeChecklistItem(params: { id: string; index: number }): Promise<NoteDetail | null> {
+export async function removeChecklistItem(params: {
+  id: string;
+  index: number;
+}): Promise<NoteDetail | null> {
   const { id, index } = params;
   const note = await getNote(id);
   if (!note) return null;

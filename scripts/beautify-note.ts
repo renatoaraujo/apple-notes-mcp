@@ -1,25 +1,35 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 async function main() {
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: ["dist/index.js"],
+    args: ['dist/index.js'],
     cwd: process.cwd(),
-    stderr: "inherit",
+    stderr: 'inherit',
   });
-  const client = new Client({ name: "beautify", version: "0.0.1" }, { capabilities: { tools: {}, logging: {} } });
+  const client = new Client(
+    { name: 'beautify', version: '0.0.1' },
+    { capabilities: { tools: {}, logging: {} } }
+  );
   await client.connect(transport);
 
-  const lf = await client.callTool({ name: "notes.list_folders" });
+  const lf = await client.callTool({ name: 'notes.list_folders' });
   const folders = (lf as any).structuredContent.folders as any[];
-  const mcp = folders.find(f => f.name === "mcp") || folders.find(f => f.name === "Notes");
-  if (!mcp) throw new Error("No suitable folder found");
+  const mcp =
+    folders.find((f) => f.name === 'mcp') ||
+    folders.find((f) => f.name === 'Notes');
+  if (!mcp) throw new Error('No suitable folder found');
 
-  const list = await client.callTool({ name: "notes.list", arguments: { folderId: mcp.id, limit: 50 } });
+  const list = await client.callTool({
+    name: 'notes.list',
+    arguments: { folderId: mcp.id, limit: 50 },
+  });
   const notes = (list as any).structuredContent.notes as any[];
-  const target = notes.find(n => (n.name || '').startsWith('AI Project Plan —')) || notes[0];
-  if (!target) throw new Error("No note found");
+  const target =
+    notes.find((n) => (n.name || '').startsWith('AI Project Plan —')) ||
+    notes[0];
+  if (!target) throw new Error('No note found');
 
   const updated = new Date().toLocaleString();
   const html = [
@@ -66,14 +76,19 @@ async function main() {
     '<li>Ambiguous value → MVP metrics</li>',
     '</ul>',
     '<h2>Decisions/Notes</h2>',
-    '<ul><li>TBD</li></ul>'
+    '<ul><li>TBD</li></ul>',
   ].join('\n');
 
-  const up = await client.callTool({ name: 'notes.update', arguments: { id: target.id, body: html } });
+  const up = await client.callTool({
+    name: 'notes.update',
+    arguments: { id: target.id, body: html },
+  });
   console.log(JSON.stringify((up as any).structuredContent.note, null, 2));
 
   await client.close();
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
-
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

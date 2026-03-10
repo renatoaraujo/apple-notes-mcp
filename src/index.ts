@@ -1,11 +1,11 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
-import { promises as fs } from "node:fs";
-import * as path from "node:path";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import type { ToolTaskHandler } from "@modelcontextprotocol/sdk/experimental/tasks/interfaces.js";
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';
+import { promises as fs } from 'node:fs';
+import * as path from 'node:path';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import type { ToolTaskHandler } from '@modelcontextprotocol/sdk/experimental/tasks/interfaces.js';
 import {
   createNote,
   deleteNote,
@@ -25,25 +25,36 @@ import {
   addLink,
   toggleChecklistItem,
   removeChecklistItem,
-} from "./notes.js";
+} from './notes.js';
 
 // Safe mode (read-only) flag and guard
-let SAFE_MODE = ["1", "true", "yes"].includes(String(process.env.NOTES_MCP_SAFE || "").toLowerCase());
+let SAFE_MODE = ['1', 'true', 'yes'].includes(
+  String(process.env.NOTES_MCP_SAFE || '').toLowerCase()
+);
 function guardWrite<T>(fn: () => Promise<T> | T): Promise<T> | T {
   if (SAFE_MODE) {
-    throw new Error("Safe mode enabled: write operations are disabled");
+    throw new Error('Safe mode enabled: write operations are disabled');
   }
   return fn();
 }
 
 // Structured output schemas
-const ZFolder = z.object({ id: z.string(), name: z.string(), account: z.string() });
-const ZNoteInfo = z.object({ id: z.string(), name: z.string(), modificationDate: z.string().optional(), folderId: z.string().optional() });
+const ZFolder = z.object({
+  id: z.string(),
+  name: z.string(),
+  account: z.string(),
+});
+const ZNoteInfo = z.object({
+  id: z.string(),
+  name: z.string(),
+  modificationDate: z.string().optional(),
+  folderId: z.string().optional(),
+});
 const ZNoteDetail = ZNoteInfo.extend({ body: z.string() });
 
 // Simple on-disk index storage
-const DATA_DIR = path.resolve(process.cwd(), "data");
-const INDEX_FILE = path.join(DATA_DIR, "index.json");
+const DATA_DIR = path.resolve(process.cwd(), 'data');
+const INDEX_FILE = path.join(DATA_DIR, 'index.json');
 type IndexData = {
   version: number;
   updatedAt: string;
@@ -56,29 +67,42 @@ async function ensureDataDir() {
 }
 
 function htmlToText(html: string): string {
-  return html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  return html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
 }
 
 function tokenize(text: string): string[] {
-  return text.toLowerCase().split(/[^a-z0-9]+/g).filter(Boolean);
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/g)
+    .filter(Boolean);
 }
 
 const server = new McpServer(
-  { name: "apple-notes-mcp", version: "0.1.0" },
+  { name: 'apple-notes-mcp', version: '0.1.0' },
   {
     capabilities: {
       tools: { listChanged: true },
       logging: {},
     },
     instructions:
-      "Manage Apple Notes locally via macOS JXA. Tools: notes.list_folders, notes.list, notes.get, notes.create, notes.update, notes.delete.",
+      'Manage Apple Notes locally via macOS JXA. Tools: notes.list_folders, notes.list, notes.get, notes.create, notes.update, notes.delete.',
   }
 );
 
 // Tools
 server.registerTool(
-  "notes.list_folders",
-  { title: "List Folders", description: "List all Apple Notes folders.", outputSchema: z.object({ folders: z.array(ZFolder) }), annotations: { readOnlyHint: true, openWorldHint: false } },
+  'notes.list_folders',
+  {
+    title: 'List Folders',
+    description: 'List all Apple Notes folders.',
+    outputSchema: z.object({ folders: z.array(ZFolder) }),
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
   async () => {
     const folders = await listFolders();
     return { content: [], structuredContent: { folders } };
@@ -86,13 +110,18 @@ server.registerTool(
 );
 
 server.registerTool(
-  "folders.ensure",
+  'folders.ensure',
   {
-    title: "Ensure Folder",
+    title: 'Ensure Folder',
     description: "Ensure a folder path exists (e.g., 'mcp' or 'parent/child').",
     inputSchema: z.object({ path: z.string() }),
     outputSchema: z.object({ folder: ZFolder }),
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
   async (args) => {
     const folder = await guardWrite(() => ensureFolder(args.path));
@@ -101,13 +130,17 @@ server.registerTool(
 );
 
 server.registerTool(
-  "folders.delete",
+  'folders.delete',
   {
-    title: "Delete Folder",
+    title: 'Delete Folder',
     description: "Delete a folder by nested path (e.g., 'parent/child').",
     inputSchema: z.object({ path: z.string() }),
     outputSchema: z.object({ ok: z.boolean() }),
-    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: false,
+    },
   },
   async (args) => {
     const ok = await guardWrite(() => deleteFolder(args.path));
@@ -116,155 +149,255 @@ server.registerTool(
 );
 
 server.registerTool(
-  "notes.append_text",
+  'notes.append_text',
   {
-    title: "Append Text",
-    description: "Append plain text to a note body.",
+    title: 'Append Text',
+    description: 'Append plain text to a note body.',
     inputSchema: z.object({ id: z.string(), text: z.string() }),
     outputSchema: z.object({ note: ZNoteDetail.nullable() }),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   async (args) => {
-    const note = await guardWrite(() => appendTextToNote({ id: args.id, text: args.text }));
+    const note = await guardWrite(() =>
+      appendTextToNote({ id: args.id, text: args.text })
+    );
     return { content: [], structuredContent: { note } };
   }
 );
 
 server.registerTool(
-  "notes.add_checklist",
+  'notes.add_checklist',
   {
-    title: "Add Checklist",
-    description: "Append checklist items to a note.",
+    title: 'Add Checklist',
+    description: 'Append checklist items to a note.',
     inputSchema: z.object({
       id: z.string(),
-      items: z.array(z.object({ text: z.string(), checked: z.boolean().optional() })),
+      items: z.array(
+        z.object({ text: z.string(), checked: z.boolean().optional() })
+      ),
     }),
     outputSchema: z.object({ note: ZNoteDetail.nullable() }),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   async (args) => {
-    const note = await guardWrite(() => addChecklist({ id: args.id, items: args.items }));
+    const note = await guardWrite(() =>
+      addChecklist({ id: args.id, items: args.items })
+    );
     return { content: [], structuredContent: { note } };
   }
 );
 
 server.registerTool(
-  "notes.apply_format",
+  'notes.apply_format',
   {
-    title: "Apply Format",
-    description: "Apply simple formatting to entire note body.",
-    inputSchema: z.object({ id: z.string(), mode: z.enum(["bold_all", "italic_all", "monospace_all"]) }),
+    title: 'Apply Format',
+    description: 'Apply simple formatting to entire note body.',
+    inputSchema: z.object({
+      id: z.string(),
+      mode: z.enum(['bold_all', 'italic_all', 'monospace_all']),
+    }),
     outputSchema: z.object({ note: ZNoteDetail.nullable() }),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   async (args) => {
-    const note = await guardWrite(() => applyFormat({ id: args.id, mode: args.mode }));
+    const note = await guardWrite(() =>
+      applyFormat({ id: args.id, mode: args.mode })
+    );
     return { content: [], structuredContent: { note } };
   }
 );
 
 server.registerTool(
-  "notes.move",
+  'notes.move',
   {
-    title: "Move Note",
-    description: "Move a note to another folder by folderId or path.",
-    inputSchema: z.object({ id: z.string(), toFolderId: z.string().optional(), toPath: z.string().optional() }).refine(v => !!(v.toFolderId || v.toPath), { message: 'Provide toFolderId or toPath' }),
+    title: 'Move Note',
+    description: 'Move a note to another folder by folderId or path.',
+    inputSchema: z
+      .object({
+        id: z.string(),
+        toFolderId: z.string().optional(),
+        toPath: z.string().optional(),
+      })
+      .refine((v) => !!(v.toFolderId || v.toPath), {
+        message: 'Provide toFolderId or toPath',
+      }),
     outputSchema: z.object({ note: ZNoteDetail.nullable() }),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   async (args) => {
-    const note = await guardWrite(() => moveNote({ id: args.id, toFolderId: args.toFolderId, toPath: args.toPath }));
+    const note = await guardWrite(() =>
+      moveNote({
+        id: args.id,
+        toFolderId: args.toFolderId,
+        toPath: args.toPath,
+      })
+    );
     return { content: [], structuredContent: { note } };
   }
 );
 
 server.registerTool(
-  "folders.rename",
+  'folders.rename',
   {
-    title: "Rename Folder",
-    description: "Rename a folder at nested path.",
+    title: 'Rename Folder',
+    description: 'Rename a folder at nested path.',
     inputSchema: z.object({ path: z.string(), newName: z.string() }),
     outputSchema: z.object({ folder: ZFolder.nullable() }),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   async (args) => {
-    const folder = await guardWrite(() => renameFolder({ path: args.path, newName: args.newName }));
+    const folder = await guardWrite(() =>
+      renameFolder({ path: args.path, newName: args.newName })
+    );
     return { content: [], structuredContent: { folder } };
   }
 );
 
 server.registerTool(
-  "folders.contents",
+  'folders.contents',
   {
-    title: "Folder Contents",
-    description: "List notes and subfolders for a folder path.",
-    inputSchema: z.object({ path: z.string(), recursive: z.boolean().optional(), limit: z.number().int().positive().max(2000).optional() }),
-    outputSchema: z.object({ folder: ZFolder, notes: z.array(ZNoteInfo), subfolders: z.array(ZFolder).optional() }),
+    title: 'Folder Contents',
+    description: 'List notes and subfolders for a folder path.',
+    inputSchema: z.object({
+      path: z.string(),
+      recursive: z.boolean().optional(),
+      limit: z.number().int().positive().max(2000).optional(),
+    }),
+    outputSchema: z.object({
+      folder: ZFolder,
+      notes: z.array(ZNoteInfo),
+      subfolders: z.array(ZFolder).optional(),
+    }),
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
   async (args) => {
-    const out = await listFolderContents({ path: args.path, recursive: args.recursive, limit: args.limit });
+    const out = await listFolderContents({
+      path: args.path,
+      recursive: args.recursive,
+      limit: args.limit,
+    });
     return { content: [], structuredContent: out };
   }
 );
 
 server.registerTool(
-  "notes.search",
+  'notes.search',
   {
-    title: "Search Notes",
-    description: "Search notes by name (fast) or body (slower).",
-    inputSchema: z.object({ query: z.string(), inBody: z.boolean().optional(), limit: z.number().int().positive().max(500).optional() }),
+    title: 'Search Notes',
+    description: 'Search notes by name (fast) or body (slower).',
+    inputSchema: z.object({
+      query: z.string(),
+      inBody: z.boolean().optional(),
+      limit: z.number().int().positive().max(500).optional(),
+    }),
     outputSchema: z.object({ results: z.array(ZNoteDetail) }),
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
   async (args) => {
-    const results = (await searchNotes({ query: args.query, inBody: args.inBody, limit: args.limit })) as any[];
+    const results = (await searchNotes({
+      query: args.query,
+      inBody: args.inBody,
+      limit: args.limit,
+    })) as any[];
     // Ensure details array
     return { content: [], structuredContent: { results: results } };
   }
 );
 
 server.registerTool(
-  "notes.add_link",
+  'notes.add_link',
   {
-    title: "Add Link",
-    description: "Append a hyperlink to a note.",
-    inputSchema: z.object({ id: z.string(), url: z.string().url(), text: z.string().optional() }),
+    title: 'Add Link',
+    description: 'Append a hyperlink to a note.',
+    inputSchema: z.object({
+      id: z.string(),
+      url: z.string().url(),
+      text: z.string().optional(),
+    }),
     outputSchema: z.object({ note: ZNoteDetail.nullable() }),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   async (args) => {
-    const note = await guardWrite(() => addLink({ id: args.id, url: args.url, text: args.text }));
+    const note = await guardWrite(() =>
+      addLink({ id: args.id, url: args.url, text: args.text })
+    );
     return { content: [], structuredContent: { note } };
   }
 );
 
 server.registerTool(
-  "notes.toggle_checklist",
+  'notes.toggle_checklist',
   {
-    title: "Toggle Checklist Item",
-    description: "Toggle or set a checklist item by index.",
-    inputSchema: z.object({ id: z.string(), index: z.number().int().nonnegative(), checked: z.boolean().optional() }),
+    title: 'Toggle Checklist Item',
+    description: 'Toggle or set a checklist item by index.',
+    inputSchema: z.object({
+      id: z.string(),
+      index: z.number().int().nonnegative(),
+      checked: z.boolean().optional(),
+    }),
     outputSchema: z.object({ note: ZNoteDetail.nullable() }),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   async (args) => {
-    const note = await guardWrite(() => toggleChecklistItem({ id: args.id, index: args.index, checked: args.checked }));
+    const note = await guardWrite(() =>
+      toggleChecklistItem({
+        id: args.id,
+        index: args.index,
+        checked: args.checked,
+      })
+    );
     return { content: [], structuredContent: { note } };
   }
 );
 
 server.registerTool(
-  "notes.remove_checklist",
+  'notes.remove_checklist',
   {
-    title: "Remove Checklist Item",
-    description: "Remove a checklist item by index.",
-    inputSchema: z.object({ id: z.string(), index: z.number().int().nonnegative() }),
+    title: 'Remove Checklist Item',
+    description: 'Remove a checklist item by index.',
+    inputSchema: z.object({
+      id: z.string(),
+      index: z.number().int().nonnegative(),
+    }),
     outputSchema: z.object({ note: ZNoteDetail.nullable() }),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   async (args) => {
-    const note = await guardWrite(() => removeChecklistItem({ id: args.id, index: args.index }));
+    const note = await guardWrite(() =>
+      removeChecklistItem({ id: args.id, index: args.index })
+    );
     return { content: [], structuredContent: { note } };
   }
 );
@@ -272,11 +405,14 @@ server.registerTool(
 // Helper to build a professional action plan HTML
 function buildActionPlanHtml(params: { title?: string; context?: string }) {
   const updated = new Date().toLocaleString();
-  const title = params.title || "AI Project Plan";
-  const sanitizedContext = (params.context || "After a recent meeting, I was tasked with building an AI solution. Motivation and scope will be clarified; we will define value and ship iteratively.")
-    .replace(/asshole|ass\s*hole|motherfuc?k(er)?/gi, "colleague")
-    .replace(/\bnobody\b\s*wasnts?/gi, "demand is uncertain")
-    .replace(/\s+/g, " ")
+  const title = params.title || 'AI Project Plan';
+  const sanitizedContext = (
+    params.context ||
+    'After a recent meeting, I was tasked with building an AI solution. Motivation and scope will be clarified; we will define value and ship iteratively.'
+  )
+    .replace(/asshole|ass\s*hole|motherfuc?k(er)?/gi, 'colleague')
+    .replace(/\bnobody\b\s*wasnts?/gi, 'demand is uncertain')
+    .replace(/\s+/g, ' ')
     .trim();
   const html = [
     `<h1>${title}</h1>`,
@@ -322,32 +458,46 @@ function buildActionPlanHtml(params: { title?: string; context?: string }) {
     '<li>Ambiguous value → MVP metrics + feedback loop</li>',
     '</ul>',
     '<h2>Decisions/Notes</h2>',
-    '<ul><li>TBD</li></ul>'
+    '<ul><li>TBD</li></ul>',
   ].join('\n');
   return html;
 }
 
 server.registerTool(
-  "notes.apply_action_plan_template",
+  'notes.apply_action_plan_template',
   {
-    title: "Apply Action Plan Template",
-    description: "Overwrite a note body with a professional action plan (headings, lists, timestamp).",
-    inputSchema: z.object({ id: z.string(), title: z.string().optional(), context: z.string().optional() }),
+    title: 'Apply Action Plan Template',
+    description:
+      'Overwrite a note body with a professional action plan (headings, lists, timestamp).',
+    inputSchema: z.object({
+      id: z.string(),
+      title: z.string().optional(),
+      context: z.string().optional(),
+    }),
     outputSchema: z.object({ note: ZNoteDetail.nullable() }),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   async (args) => {
-    const html = buildActionPlanHtml({ title: args.title, context: args.context });
-    const note = await guardWrite(() => updateNote({ id: args.id, body: html }));
+    const html = buildActionPlanHtml({
+      title: args.title,
+      context: args.context,
+    });
+    const note = await guardWrite(() =>
+      updateNote({ id: args.id, body: html })
+    );
     return { content: [], structuredContent: { note } };
   }
 );
 
 server.registerTool(
-  "notes.list",
+  'notes.list',
   {
-    title: "List Notes",
-    description: "List notes optionally filtered by folder or query.",
+    title: 'List Notes',
+    description: 'List notes optionally filtered by folder or query.',
     inputSchema: z.object({
       folderId: z.string().optional(),
       query: z.string().optional(),
@@ -367,10 +517,10 @@ server.registerTool(
 );
 
 server.registerTool(
-  "notes.get",
+  'notes.get',
   {
-    title: "Get Note",
-    description: "Fetch a note by ID.",
+    title: 'Get Note',
+    description: 'Fetch a note by ID.',
     inputSchema: z.object({ id: z.string() }),
     outputSchema: z.object({ note: ZNoteDetail.nullable() }),
     annotations: { readOnlyHint: true, openWorldHint: false },
@@ -382,32 +532,38 @@ server.registerTool(
 );
 
 server.registerTool(
-  "notes.create",
+  'notes.create',
   {
-    title: "Create Note",
-    description: "Create a new note with optional folder, title and body.",
+    title: 'Create Note',
+    description: 'Create a new note with optional folder, title and body.',
     inputSchema: z.object({
       folderId: z.string().optional(),
       title: z.string().optional(),
       body: z.string().optional(),
     }),
     outputSchema: z.object({ note: ZNoteDetail }),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   async (args) => {
-    const note = await guardWrite(() => createNote({
-      folderId: args.folderId,
-      title: args.title,
-      body: args.body,
-    }));
+    const note = await guardWrite(() =>
+      createNote({
+        folderId: args.folderId,
+        title: args.title,
+        body: args.body,
+      })
+    );
     return { content: [], structuredContent: { note } };
   }
 );
 
 server.registerTool(
-  "notes.update",
+  'notes.update',
   {
-    title: "Update Note",
+    title: 'Update Note',
     description: "Update a note's title/body. Optionally append body.",
     inputSchema: z.object({
       id: z.string(),
@@ -416,27 +572,37 @@ server.registerTool(
       append: z.boolean().optional(),
     }),
     outputSchema: z.object({ note: ZNoteDetail.nullable() }),
-    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   async (args) => {
-    const note = await guardWrite(() => updateNote({
-      id: args.id,
-      title: args.title,
-      body: args.body,
-      append: args.append,
-    }));
+    const note = await guardWrite(() =>
+      updateNote({
+        id: args.id,
+        title: args.title,
+        body: args.body,
+        append: args.append,
+      })
+    );
     return { content: [], structuredContent: { note } };
   }
 );
 
 server.registerTool(
-  "notes.delete",
+  'notes.delete',
   {
-    title: "Delete Note",
-    description: "Delete a note by ID (moves to Recently Deleted).",
+    title: 'Delete Note',
+    description: 'Delete a note by ID (moves to Recently Deleted).',
     inputSchema: z.object({ id: z.string() }),
     outputSchema: z.object({ ok: z.boolean() }),
-    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: false,
+    },
   },
   async (args) => {
     const ok = await guardWrite(() => deleteNote(args.id));
@@ -447,15 +613,18 @@ server.registerTool(
 // Background indexing as a task-based tool
 const indexTaskHandler: ToolTaskHandler<undefined> = {
   createTask: async (extra: any) => {
-    const task = await extra.taskStore.createTask({ ttl: 15 * 60 * 1000, pollInterval: 1000 });
+    const task = await extra.taskStore.createTask({
+      ttl: 15 * 60 * 1000,
+      pollInterval: 1000,
+    });
     // Start background work
     setImmediate(async () => {
       try {
         await ensureDataDir();
         const all = await listNotes({ limit: 5000 });
         let totalChars = 0;
-        const notesMap: IndexData["notes"] = {};
-        const terms: IndexData["terms"] = {};
+        const notesMap: IndexData['notes'] = {};
+        const terms: IndexData['terms'] = {};
         const concurrency = 8;
         let idx = 0;
         async function worker() {
@@ -467,7 +636,7 @@ const indexTaskHandler: ToolTaskHandler<undefined> = {
             notesMap[d.id] = { id: d.id, name: d.name, folderId: d.folderId };
             const txt = htmlToText(d.body);
             totalChars += txt.length;
-            const toks = tokenize(d.name + " " + txt);
+            const toks = tokenize(d.name + ' ' + txt);
             const seen = new Set<string>();
             for (const t of toks) {
               if (seen.has(t)) continue; // avoid duplicate ids per note per term
@@ -477,47 +646,90 @@ const indexTaskHandler: ToolTaskHandler<undefined> = {
           }
         }
         await Promise.all(Array.from({ length: concurrency }, () => worker()));
-        const index: IndexData = { version: 1, updatedAt: new Date().toISOString(), terms, notes: notesMap };
+        const index: IndexData = {
+          version: 1,
+          updatedAt: new Date().toISOString(),
+          terms,
+          notes: notesMap,
+        };
         await fs.writeFile(INDEX_FILE, JSON.stringify(index));
-        const result = { content: [], structuredContent: { stats: { totalNotes: all.length, totalChars, uniqueTerms: Object.keys(terms).length, updatedAt: index.updatedAt } } };
-        await extra.taskStore.storeTaskResult(task.taskId, "completed", result);
+        const result = {
+          content: [],
+          structuredContent: {
+            stats: {
+              totalNotes: all.length,
+              totalChars,
+              uniqueTerms: Object.keys(terms).length,
+              updatedAt: index.updatedAt,
+            },
+          },
+        };
+        await extra.taskStore.storeTaskResult(task.taskId, 'completed', result);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        const result = { content: [{ type: "text", text: msg }], isError: true };
-        await extra.taskStore.storeTaskResult(task.taskId, "failed", result);
+        const result = {
+          content: [{ type: 'text', text: msg }],
+          isError: true,
+        };
+        await extra.taskStore.storeTaskResult(task.taskId, 'failed', result);
       }
     });
     return { task };
   },
   getTask: async (extra: any) => extra.taskStore.getTask(extra.taskId),
-  getTaskResult: async (extra: any) => extra.taskStore.getTaskResult(extra.taskId),
+  getTaskResult: async (extra: any) =>
+    extra.taskStore.getTaskResult(extra.taskId),
 };
 
 server.experimental.tasks.registerToolTask(
-  "notes.index_build",
+  'notes.index_build',
   {
-    title: "Build Search Index",
-    description: "Builds a local search index over all notes (runs in background).",
-    outputSchema: z.object({ stats: z.object({ totalNotes: z.number().int(), totalChars: z.number().int(), uniqueTerms: z.number().int(), updatedAt: z.string() }) }),
-    execution: { taskSupport: "optional" },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    title: 'Build Search Index',
+    description:
+      'Builds a local search index over all notes (runs in background).',
+    outputSchema: z.object({
+      stats: z.object({
+        totalNotes: z.number().int(),
+        totalChars: z.number().int(),
+        uniqueTerms: z.number().int(),
+        updatedAt: z.string(),
+      }),
+    }),
+    execution: { taskSupport: 'optional' },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
   },
   indexTaskHandler
 );
 
 server.registerTool(
-  "notes.index_status",
+  'notes.index_status',
   {
-    title: "Index Status",
-    description: "Check if a local search index exists and when it was updated.",
-    outputSchema: z.object({ exists: z.boolean(), updatedAt: z.string().optional() }),
-    annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+    title: 'Index Status',
+    description:
+      'Check if a local search index exists and when it was updated.',
+    outputSchema: z.object({
+      exists: z.boolean(),
+      updatedAt: z.string().optional(),
+    }),
+    annotations: {
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
   async () => {
     try {
-      const buf = await fs.readFile(INDEX_FILE, "utf8");
+      const buf = await fs.readFile(INDEX_FILE, 'utf8');
       const idx = JSON.parse(buf) as IndexData;
-      return { content: [], structuredContent: { exists: true, updatedAt: idx.updatedAt } };
+      return {
+        content: [],
+        structuredContent: { exists: true, updatedAt: idx.updatedAt },
+      };
     } catch {
       return { content: [], structuredContent: { exists: false } };
     }
@@ -525,23 +737,38 @@ server.registerTool(
 );
 
 server.registerTool(
-  "notes.index_search",
+  'notes.index_search',
   {
-    title: "Index Search",
-    description: "Fast search using the local index (run index_build first).",
-    inputSchema: z.object({ query: z.string(), limit: z.number().int().positive().max(500).optional() }),
+    title: 'Index Search',
+    description: 'Fast search using the local index (run index_build first).',
+    inputSchema: z.object({
+      query: z.string(),
+      limit: z.number().int().positive().max(500).optional(),
+    }),
     outputSchema: z.object({ results: z.array(ZNoteInfo) }),
-    annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+    annotations: {
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
   async (args) => {
     const q = args.query.trim().toLowerCase();
     if (!q) return { content: [], structuredContent: { results: [] } };
     let idx: IndexData | null = null;
     try {
-      const buf = await fs.readFile(INDEX_FILE, "utf8");
+      const buf = await fs.readFile(INDEX_FILE, 'utf8');
       idx = JSON.parse(buf) as IndexData;
     } catch {
-      return { content: [{ type: "text", text: "No index found. Run notes.index_build first." }], isError: true } as any;
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'No index found. Run notes.index_build first.',
+          },
+        ],
+        isError: true,
+      } as any;
     }
     const terms = tokenize(q);
     let candidates: Set<string> | null = null;
@@ -559,7 +786,8 @@ server.registerTool(
     const results: any[] = [];
     for (const id of candidates ? [...candidates] : []) {
       const info = idx.notes[id];
-      if (info) results.push({ id: info.id, name: info.name, folderId: info.folderId });
+      if (info)
+        results.push({ id: info.id, name: info.name, folderId: info.folderId });
       if (args.limit && results.length >= args.limit) break;
     }
     return { content: [], structuredContent: { results } };
@@ -568,24 +796,33 @@ server.registerTool(
 
 // Admin: server status and safe mode
 server.registerTool(
-  "server.status",
+  'server.status',
   {
-    title: "Server Status",
-    description: "Get server status including safe mode flag.",
+    title: 'Server Status',
+    description: 'Get server status including safe mode flag.',
     outputSchema: z.object({ safeMode: z.boolean() }),
-    annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+    annotations: {
+      readOnlyHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
   async () => ({ content: [], structuredContent: { safeMode: SAFE_MODE } })
 );
 
 server.registerTool(
-  "server.set_safe_mode",
+  'server.set_safe_mode',
   {
-    title: "Set Safe Mode",
-    description: "Enable/disable safe (read-only) mode for write ops.",
+    title: 'Set Safe Mode',
+    description: 'Enable/disable safe (read-only) mode for write ops.',
     inputSchema: z.object({ safe: z.boolean() }),
     outputSchema: z.object({ safeMode: z.boolean() }),
-    annotations: { readOnlyHint: false, idempotentHint: true, destructiveHint: false, openWorldHint: false },
+    annotations: {
+      readOnlyHint: false,
+      idempotentHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
   },
   async (args) => {
     SAFE_MODE = !!args.safe;
@@ -596,15 +833,19 @@ server.registerTool(
 // Lightweight CLI flags for CI/testing and users
 try {
   const argv = process.argv.slice(2);
-  if (argv.includes("--version")) {
+  if (argv.includes('--version')) {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const pkg = JSON.parse(readFileSync(path.resolve(__dirname, "../package.json"), "utf8"));
-    console.log(String(pkg.version || "0.0.0"));
+    const pkg = JSON.parse(
+      readFileSync(path.resolve(__dirname, '../package.json'), 'utf8')
+    );
+    console.log(String(pkg.version || '0.0.0'));
     process.exit(0);
   }
-  if (argv.includes("--help")) {
-    console.log("apple-notes-mcp: start an MCP server over stdio.\nUsage: npx @rnto1/apple-notes-mcp [--version] [--help]");
+  if (argv.includes('--help')) {
+    console.log(
+      'apple-notes-mcp: start an MCP server over stdio.\nUsage: npx @rnto1/apple-notes-mcp [--version] [--help]'
+    );
     process.exit(0);
   }
 } catch {}
@@ -612,6 +853,6 @@ try {
 // Start on stdio for MCP
 const transport = new StdioServerTransport();
 server.connect(transport).catch((err) => {
-  console.error("Failed to start MCP server:", err);
+  console.error('Failed to start MCP server:', err);
   process.exit(1);
 });

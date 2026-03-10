@@ -9,8 +9,13 @@ const __dirname = path.dirname(__filename);
 const distCli = path.resolve(__dirname, '../dist/index.js');
 
 test('prints version with --version', () => {
-  const res = spawnSync(process.execPath, [distCli, '--version'], { encoding: 'utf8' });
-  assert.equal(res.status, 0, `exit ${res.status}\nstdout: ${res.stdout}\nstderr: ${res.stderr}`);
+  const res = spawnSync(process.execPath, [distCli, '--version'], {
+    encoding: 'utf8',
+  });
+  assert.equal(
+    res.status,
+    0,
+    `exit ${res.status}\nstdout: ${res.stdout}\nstderr: ${res.stderr}`
+  );
   assert.match(res.stdout.trim(), /^\d+\.\d+\.\d+(-.*)?$/);
 });
-

@@ -15,12 +15,12 @@ Clients
   - Edit: `~/Library/Application Support/Claude/claude_desktop_config.json`
   - Add under `mcpServers`:
     {
-      "mcpServers": {
-        "apple-notes": {
-          "command": "node",
-          "args": ["/absolute/path/to/apple-notes-mcp/dist/index.js"]
-        }
-      }
+    "mcpServers": {
+    "apple-notes": {
+    "command": "node",
+    "args": ["/absolute/path/to/apple-notes-mcp/dist/index.js"]
+    }
+    }
     }
   - Restart Claude Desktop.
 
@@ -31,12 +31,12 @@ Clients
 - Dev mode (no build)
   - If you prefer not to build, point to tsx:
     {
-      "mcpServers": {
-        "apple-notes": {
-          "command": "node",
-          "args": ["/absolute/path/to/apple-notes-mcp/node_modules/tsx/dist/cli.js", "src/index.ts"]
-        }
-      }
+    "mcpServers": {
+    "apple-notes": {
+    "command": "node",
+    "args": ["/absolute/path/to/apple-notes-mcp/node_modules/tsx/dist/cli.js", "src/index.ts"]
+    }
+    }
     }
 
 - Codex CLI

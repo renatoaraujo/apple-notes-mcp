@@ -1,6 +1,6 @@
 {
-  "name": "@renatoaraujo/apple-notes-mcp",
-  "version": "0.2.1",
+  "name": "@rnto1/apple-notes-mcp",
+  "version": "0.2.2",
   "private": false,
   "type": "module",
   "bin": {
@@ -27,7 +27,15 @@
     "zod": "^4.3.6"
   },
   "description": "MCP server for Apple Notes on macOS (local stdio)",
-  "keywords": ["mcp", "model context protocol", "apple", "notes", "macos", "cli", "renatoaraujo"],
+  "keywords": [
+    "mcp",
+    "model context protocol",
+    "apple",
+    "notes",
+    "macos",
+    "cli",
+    "renatoaraujo"
+  ],
   "files": [
     "dist",
     "README.md"

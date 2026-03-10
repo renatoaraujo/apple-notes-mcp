@@ -47,7 +47,7 @@ Clients
 
 npx options
 
-- Once published to npm: `npx @renatoaraujo/apple-notes-mcp` starts the server.
+- Once published to npm: `npx @rnto1/apple-notes-mcp` starts the server.
 - Immediate (GitHub): `npx -y github:renatoaraujo/apple-notes-mcp apple-notes-mcp`.
 - If the npm name is unavailable in your org, publish under a scope (e.g., `@yourscope/apple-notes-mcp`) and run `npx @yourscope/apple-notes-mcp`.
 

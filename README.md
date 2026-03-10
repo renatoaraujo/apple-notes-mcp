@@ -1,54 +1,68 @@
-Apple Notes MCP (local)
+Apple Notes MCP (Local)
 
-Simple local MCP server that lets AIs list, create, read, update, and delete Apple Notes on macOS using native JXA (osascript). No network access; works over stdio.
+This is a local-only MCP server that lets any AI agent create, read, search, organize, and format Apple Notes on your Mac. It uses the macOS Notes app directly (no cloud, no external network).
 
-Install & Run
+Quick Start (no coding)
 
-- Requirements: macOS, Node 20+, Apple Notes enabled, Automation permission for Terminal.
-- Build: `npm run build`
-- Start (stdio): `node dist/index.js`
+- Requirements: macOS, Node 20+, Apple Notes enabled.
+- Install: `npm install` (first time), then `npm run build`.
+- Start the MCP server: `node dist/index.js`.
+- Connect your AI agent/client (see “Connect to your AI”).
 
-Tools
+Connect to your AI
 
-- notes.list_folders: List folders with `id`, `name`, `account`.
-- notes.list: Optional `folderId`, `query`, `limit`. Returns note summaries.
-- notes.get: `id` → returns `name`, `body` (HTML), `modificationDate`, `folderId`.
-- notes.create: Optional `folderId`, `title`, `body`. Returns created note.
-- notes.update: `id` plus optional `title`, `body`, `append`.
-- notes.delete: `id` → moves to Recently Deleted.
-
-Privacy
-
-- Interacts locally via `osascript -l JavaScript`. No data leaves your machine.
-- The server only returns what a client requests. Avoid exposing sensitive note bodies unless necessary.
-
-MCP Client Config (example)
-
-If your MCP client supports a JSON config with `mcpServers`, add:
-
-{
-  "mcpServers": {
-    "apple-notes": {
-      "command": "node",
-      "args": ["/Users/renato/apple-notes-mcp/dist/index.js"]
+- Generic MCP config (most clients):
+  {
+    "mcpServers": {
+      "apple-notes": {
+        "command": "node",
+        "args": ["/absolute/path/to/apple-notes-mcp/dist/index.js"]
+      }
     }
   }
-}
-
-For local development (no build):
-
-{
-  "mcpServers": {
-    "apple-notes": {
-      "command": "node",
-      "args": ["/Users/renato/apple-notes-mcp/node_modules/tsx/dist/cli.js", "src/index.ts"]
+- Claude Desktop (macOS): edit `~/Library/Application Support/Claude/claude_desktop_config.json` and add the block above, then restart Claude.
+- Dev mode (no build):
+  {
+    "mcpServers": {
+      "apple-notes": {
+        "command": "node",
+        "args": ["/absolute/path/to/apple-notes-mcp/node_modules/tsx/dist/cli.js", "src/index.ts"]
+      }
     }
   }
-}
+
+What you can ask your AI to do
+
+- “Create a note titled Trip Plan with a packing checklist in the mcp folder.”
+- “Search my notes for ‘tax return’ and show the top 10.”
+- “Move the note ‘Project Brief’ to Projects/2026.”
+- “Append ‘Action items: …’ to the note with ID X.”
+- “Bold the entire body of the note named ‘Retrospective’.”
+- “List the contents (notes and subfolders) of Personal/Health.”
+
+Tool overview (friendly)
+
+- Folders: ensure (create path), delete, rename, contents, list_folders.
+- Notes: create, get, list, update, delete, move, append_text, add_checklist, toggle_checklist, remove_checklist, apply_format, add_link, search.
+- Admin: server.status, server.set_safe_mode.
+
+Safety & Privacy
+
+- Local-only: communicates with the Notes app via macOS `osascript`; no data leaves your machine.
+- Safe mode: set `NOTES_MCP_SAFE=1` or call tool `server.set_safe_mode` to block writes. Use this if you want read-only exploration.
+- Destructive operations (delete) are clearly labeled; agents can see safety hints on tools.
 
 Troubleshooting
 
-- First run may prompt for Automation permission to control Notes.
-- If IDs don’t resolve, ensure Notes is open and iCloud is synced.
-- Creating notes uses the default account/folder when no `folderId` is provided.
+- First run will ask for Automation permissions to control Notes. Allow this in System Settings.
+- If folders/notes don’t show up, open the Notes app; ensure iCloud sync is complete.
+- If your client can’t connect, confirm your JSON config path and absolute paths are correct.
 
+For advanced users
+
+- Scripts: `npm run activate:create` demonstrates connecting to the MCP locally and creating content.
+- Structured outputs: All tools return structuredContent with explicit schemas to help agents reason safely.
+
+Unscriptable or limited areas (for now)
+
+- Fine-grained rich text ranges, attachments, tags, pin/lock, collaboration controls are not reliably scriptable via Notes automation. We focus on features that work consistently.

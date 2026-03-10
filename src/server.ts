@@ -1,4 +1,7 @@
-import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
+import {
+  McpServer,
+  ResourceTemplate,
+} from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { NoteDetail, NotesAdapter } from './domain.js';
 import { NotesMcpError, toToolErrorData } from './errors.js';
@@ -109,7 +112,9 @@ async function withToolResult<T extends object>(
   fn: () => Promise<T>
 ): Promise<{
   content: { type: 'text'; text: string }[];
-  structuredContent: T | { ok: false; error: ReturnType<typeof toToolErrorData> };
+  structuredContent:
+    | T
+    | { ok: false; error: ReturnType<typeof toToolErrorData> };
   isError?: boolean;
 }> {
   try {
@@ -245,7 +250,10 @@ export function createNotesServer(params: {
     async (args) => {
       const note = await adapter.getNote(args.noteId, false);
       if (!note) {
-        throw new NotesMcpError('not_found', `Note ${args.noteId} was not found.`);
+        throw new NotesMcpError(
+          'not_found',
+          `Note ${args.noteId} was not found.`
+        );
       }
 
       const focus = args.focus?.trim()
@@ -280,11 +288,15 @@ export function createNotesServer(params: {
     async (args) => {
       const note = await adapter.getNote(args.noteId, false);
       if (!note) {
-        throw new NotesMcpError('not_found', `Note ${args.noteId} was not found.`);
+        throw new NotesMcpError(
+          'not_found',
+          `Note ${args.noteId} was not found.`
+        );
       }
 
       const instruction =
-        args.instruction?.trim() || 'Improve clarity and structure while preserving meaning.';
+        args.instruction?.trim() ||
+        'Improve clarity and structure while preserving meaning.';
 
       return {
         description: `Rewrite note ${note.title}`,
@@ -305,18 +317,24 @@ export function createNotesServer(params: {
     'server_status',
     {
       title: 'Server Status',
-      description: 'Get the current local server policy and client capability snapshot.',
+      description:
+        'Get the current local server policy and client capability snapshot.',
       outputSchema: withErrorSchema({
         policy: ZPolicy,
         clientSupportsElicitation: z.boolean(),
       }),
-      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async () =>
       withToolResult(async () => ({
         ok: true as const,
         policy: policy.snapshot,
-        clientSupportsElicitation: !!server.server.getClientCapabilities()?.elicitation,
+        clientSupportsElicitation:
+          !!server.server.getClientCapabilities()?.elicitation,
       }))
   );
 
@@ -326,7 +344,11 @@ export function createNotesServer(params: {
       title: 'List Accounts',
       description: 'List Apple Notes accounts on this Mac.',
       outputSchema: withErrorSchema({ accounts: z.array(ZAccount) }),
-      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async () =>
       withToolResult(async () => ({
@@ -342,7 +364,11 @@ export function createNotesServer(params: {
       description: 'List Apple Notes folders with full account-aware paths.',
       inputSchema: z.object({ accountId: z.string().optional() }),
       outputSchema: withErrorSchema({ folders: z.array(ZFolder) }),
-      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async (args) =>
       withToolResult(async () => ({
@@ -370,7 +396,11 @@ export function createNotesServer(params: {
         subfolders: z.array(ZFolder),
         notes: z.array(ZNoteSummary),
       }),
-      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async (args) =>
       withToolResult(async () => {
@@ -457,7 +487,10 @@ export function createNotesServer(params: {
       withToolResult(async () => {
         const folder = await adapter.getFolderById(args.id);
         if (!folder) {
-          throw new NotesMcpError('not_found', `Folder ${args.id} was not found.`);
+          throw new NotesMcpError(
+            'not_found',
+            `Folder ${args.id} was not found.`
+          );
         }
         await policy.assertDeleteAllowed({
           clientCapabilities: server.server.getClientCapabilities(),
@@ -481,7 +514,11 @@ export function createNotesServer(params: {
         limit: z.number().int().min(1).max(500).optional(),
       }),
       outputSchema: withErrorSchema({ notes: z.array(ZNoteSummary) }),
-      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async (args) =>
       withToolResult(async () => ({
@@ -500,7 +537,11 @@ export function createNotesServer(params: {
         limit: z.number().int().min(1).max(200).optional(),
       }),
       outputSchema: withErrorSchema({ notes: z.array(ZNoteSummary) }),
-      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async (args) =>
       withToolResult(async () => ({
@@ -513,19 +554,27 @@ export function createNotesServer(params: {
     'notes_get',
     {
       title: 'Get Note',
-      description: 'Get a note by id with normalized plaintext and optional HTML.',
+      description:
+        'Get a note by id with normalized plaintext and optional HTML.',
       inputSchema: z.object({
         id: z.string(),
         includeHtml: z.boolean().optional(),
       }),
       outputSchema: withErrorSchema({ note: ZNoteDetail }),
-      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async (args) =>
       withToolResult(async () => {
         const note = await adapter.getNote(args.id, args.includeHtml ?? false);
         if (!note) {
-          throw new NotesMcpError('not_found', `Note ${args.id} was not found.`);
+          throw new NotesMcpError(
+            'not_found',
+            `Note ${args.id} was not found.`
+          );
         }
         return { ok: true as const, note };
       })
@@ -638,7 +687,10 @@ export function createNotesServer(params: {
       withToolResult(async () => {
         const note = await adapter.getNote(args.id, false);
         if (!note) {
-          throw new NotesMcpError('not_found', `Note ${args.id} was not found.`);
+          throw new NotesMcpError(
+            'not_found',
+            `Note ${args.id} was not found.`
+          );
         }
         await policy.assertDeleteAllowed({
           clientCapabilities: server.server.getClientCapabilities(),

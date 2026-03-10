@@ -161,7 +161,9 @@ function snapshotScript(includeBodies: boolean): string {
 }
 
 export class AppleNotesAdapter implements NotesAdapter {
-  constructor(private readonly runtime: ScriptRuntime = { runJxa, runAppleScript }) {}
+  constructor(
+    private readonly runtime: ScriptRuntime = { runJxa, runAppleScript }
+  ) {}
 
   private async snapshot(includeBodies = false): Promise<Snapshot> {
     return this.runtime.runJxa<Snapshot>(snapshotScript(includeBodies));
@@ -177,7 +179,10 @@ export class AppleNotesAdapter implements NotesAdapter {
     if (input.id) {
       const folder = snapshot.folders.find((entry) => entry.id === input.id);
       if (!folder) {
-        throw new NotesMcpError('not_found', `Folder ${input.id} was not found.`);
+        throw new NotesMcpError(
+          'not_found',
+          `Folder ${input.id} was not found.`
+        );
       }
       return folder;
     }
@@ -214,7 +219,9 @@ export class AppleNotesAdapter implements NotesAdapter {
     return matches[0];
   }
 
-  private async resolveAccountId(accountId?: string): Promise<string | undefined> {
+  private async resolveAccountId(
+    accountId?: string
+  ): Promise<string | undefined> {
     if (accountId) {
       return accountId;
     }
@@ -223,7 +230,9 @@ export class AppleNotesAdapter implements NotesAdapter {
     return accounts.find((entry) => entry.isDefault)?.id;
   }
 
-  private async resolveTargetFolder(input: CreateNoteInput): Promise<string | undefined> {
+  private async resolveTargetFolder(
+    input: CreateNoteInput
+  ): Promise<string | undefined> {
     if (input.folderId) {
       return input.folderId;
     }
@@ -239,7 +248,10 @@ export class AppleNotesAdapter implements NotesAdapter {
     return folder.id;
   }
 
-  private async requireNote(id: string, includeHtml: boolean): Promise<NoteDetail> {
+  private async requireNote(
+    id: string,
+    includeHtml: boolean
+  ): Promise<NoteDetail> {
     const note = await this.getNote(id, includeHtml);
     if (!note) {
       throw new NotesMcpError('not_found', `Note ${id} was not found.`);
@@ -249,7 +261,9 @@ export class AppleNotesAdapter implements NotesAdapter {
 
   async listAccounts(): Promise<AccountInfo[]> {
     const snapshot = await this.snapshot(false);
-    return snapshot.accounts.sort((left, right) => left.name.localeCompare(right.name));
+    return snapshot.accounts.sort((left, right) =>
+      left.name.localeCompare(right.name)
+    );
   }
 
   async listFolders(accountId?: string): Promise<FolderInfo[]> {
@@ -264,7 +278,10 @@ export class AppleNotesAdapter implements NotesAdapter {
     return snapshot.folders.find((entry) => entry.id === id) ?? null;
   }
 
-  async getFolderByPath(path: string, accountId?: string): Promise<FolderInfo | null> {
+  async getFolderByPath(
+    path: string,
+    accountId?: string
+  ): Promise<FolderInfo | null> {
     try {
       return await this.resolveFolder({ path, accountId });
     } catch (error) {
@@ -291,7 +308,9 @@ export class AppleNotesAdapter implements NotesAdapter {
         notes: snapshot.notes
           .filter((entry) => entry.folderId === folder.id)
           .sort((left, right) =>
-            String(right.modifiedAt ?? '').localeCompare(String(left.modifiedAt ?? ''))
+            String(right.modifiedAt ?? '').localeCompare(
+              String(left.modifiedAt ?? '')
+            )
           ),
       };
     } catch (error) {
@@ -302,7 +321,10 @@ export class AppleNotesAdapter implements NotesAdapter {
     }
   }
 
-  async ensureFolder(input: { path: string; accountId?: string }): Promise<FolderInfo> {
+  async ensureFolder(input: {
+    path: string;
+    accountId?: string;
+  }): Promise<FolderInfo> {
     const path = ensurePath(input.path);
     const parts = path.split('/');
     const accountId = await this.resolveAccountId(input.accountId);
@@ -325,7 +347,9 @@ export class AppleNotesAdapter implements NotesAdapter {
       'end tell',
     ].join('\n');
 
-    const folderId = String(await this.runtime.runAppleScript(scriptLines)).trim();
+    const folderId = String(
+      await this.runtime.runAppleScript(scriptLines)
+    ).trim();
     const folder = await this.getFolderById(folderId);
     if (!folder) {
       throw new NotesMcpError(
@@ -336,7 +360,10 @@ export class AppleNotesAdapter implements NotesAdapter {
     return folder;
   }
 
-  async renameFolder(input: { id: string; newName: string }): Promise<FolderInfo> {
+  async renameFolder(input: {
+    id: string;
+    newName: string;
+  }): Promise<FolderInfo> {
     const folder = await this.resolveFolder({ id: input.id });
     const newName = input.newName.trim();
     if (!newName) {
@@ -354,7 +381,10 @@ export class AppleNotesAdapter implements NotesAdapter {
 
     const parentPath = folder.path.split('/').slice(0, -1).join('/');
     const renamedPath = parentPath ? `${parentPath}/${newName}` : newName;
-    return this.resolveFolder({ path: renamedPath, accountId: folder.accountId });
+    return this.resolveFolder({
+      path: renamedPath,
+      accountId: folder.accountId,
+    });
   }
 
   async deleteFolder(id: string): Promise<boolean> {
@@ -368,18 +398,26 @@ export class AppleNotesAdapter implements NotesAdapter {
     return true;
   }
 
-  async listNotes(input?: { folderId?: string; limit?: number }): Promise<NoteSummary[]> {
+  async listNotes(input?: {
+    folderId?: string;
+    limit?: number;
+  }): Promise<NoteSummary[]> {
     const snapshot = await this.snapshot(false);
     const limit = Math.min(Math.max(input?.limit ?? 100, 1), 500);
     return snapshot.notes
       .filter((entry) => !input?.folderId || entry.folderId === input.folderId)
       .sort((left, right) =>
-        String(right.modifiedAt ?? '').localeCompare(String(left.modifiedAt ?? ''))
+        String(right.modifiedAt ?? '').localeCompare(
+          String(left.modifiedAt ?? '')
+        )
       )
       .slice(0, limit);
   }
 
-  async searchNotes(input: { query: string; limit?: number }): Promise<NoteSummary[]> {
+  async searchNotes(input: {
+    query: string;
+    limit?: number;
+  }): Promise<NoteSummary[]> {
     const query = input.query.trim().toLowerCase();
     if (!query) {
       return [];
@@ -394,7 +432,9 @@ export class AppleNotesAdapter implements NotesAdapter {
         return haystack.includes(query);
       })
       .sort((left, right) =>
-        String(right.modifiedAt ?? '').localeCompare(String(left.modifiedAt ?? ''))
+        String(right.modifiedAt ?? '').localeCompare(
+          String(left.modifiedAt ?? '')
+        )
       )
       .slice(0, limit)
       .map(({ text: _text, html: _html, ...note }) => note);
@@ -435,7 +475,7 @@ export class AppleNotesAdapter implements NotesAdapter {
     const folderId = await this.resolveTargetFolder(input);
     const html =
       input.content.format === 'apple_html'
-        ? input.content.html ?? ''
+        ? (input.content.html ?? '')
         : plainTextToAppleHtml(input.content.text ?? '');
 
     const accountId = folderId
@@ -518,7 +558,10 @@ export class AppleNotesAdapter implements NotesAdapter {
     return this.requireNote(input.id, true);
   }
 
-  async moveNote(input: { id: string; toFolderId: string }): Promise<NoteDetail> {
+  async moveNote(input: {
+    id: string;
+    toFolderId: string;
+  }): Promise<NoteDetail> {
     await this.requireNote(input.id, false);
     await this.resolveFolder({ id: input.toFolderId });
 

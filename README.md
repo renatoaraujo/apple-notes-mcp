@@ -45,6 +45,12 @@ Clients
     - Or call the server directly from Node using the example scripts in `scripts/` (see below).
   - When Codex adds MCP configuration support, use the same `command` and `args` block above.
 
+npx options
+
+- Once published to npm: `npx apple-notes-mcp` starts the server.
+- Immediate (GitHub): `npx -y github:renatoaraujo/apple-notes-mcp apple-notes-mcp`.
+- If the npm name is unavailable in your org, publish under a scope (e.g., `@yourscope/apple-notes-mcp`) and run `npx @yourscope/apple-notes-mcp`.
+
 What you can ask your AI to do
 
 - “Create a note titled Trip Plan with a packing checklist in the mcp folder.”

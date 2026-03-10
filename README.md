@@ -66,3 +66,34 @@ For advanced users
 Unscriptable or limited areas (for now)
 
 - Fine-grained rich text ranges, attachments, tags, pin/lock, collaboration controls are not reliably scriptable via Notes automation. We focus on features that work consistently.
+
+Recipes (everyday tasks)
+
+- Create a note in a folder
+  - Ask: “Create a note titled Trip Plan in the mcp folder with a packing checklist.”
+  - Under the hood, the agent will call:
+    - folders.ensure { path: "mcp" } → get folder.id
+    - notes.create { folderId, title: "Trip Plan", body: "Packing list:" }
+    - notes.add_checklist { id: note.id, items: [{ text: "Passport" }, { text: "Charger" }] }
+
+- Search notes quickly
+  - First run: notes.index_build (background task builds a local index)
+  - Check status: notes.index_status
+  - Search: notes.index_search { query: "tax return", limit: 10 }
+
+- Move a note by path
+  - notes.move { id: "<noteId>", toPath: "Projects/2026" }
+
+- Append text to an existing note
+  - notes.append_text { id: "<noteId>", text: "\nAction: book flights" }
+
+- Safe, read-only mode
+  - Enable for peace of mind: set env NOTES_MCP_SAFE=1 before starting, or call server.set_safe_mode { safe: true } during a session.
+
+- Delete a folder by path (destructive)
+  - folders.delete { path: "Old/Temporary" }
+
+Tips
+
+- You can refer to notes and folders by names/paths in your natural request; the agent will resolve IDs using the tools above.
+- For bulk or long jobs (e.g., indexing), background tasks let agents work in parallel without blocking chat.

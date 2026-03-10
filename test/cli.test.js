@@ -28,6 +28,7 @@ test('prints help with --help', () => {
 
   assert.equal(res.status, 0);
   assert.match(res.stdout, /local MCP server for Apple Notes/);
+  assert.match(res.stdout, /NOTES_MCP_WARMUP=0\|1/);
 });
 
 test('assertSupportedPlatform rejects non-macOS startup', () => {

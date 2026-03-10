@@ -79,6 +79,9 @@ These can be set in the environment of the MCP host.
 - `NOTES_MCP_ALLOW_DELETES=0|1`
   - Default: `0`
   - Set to `1` to allow destructive deletes without interactive confirmation.
+- `NOTES_MCP_WARMUP=0|1`
+  - Default: `1`
+  - When enabled, the server proactively activates Notes and triggers the macOS Automation prompt on startup so the first real tool call does not have to discover permissions the hard way.
 
 Example with writes disabled:
 
@@ -168,7 +171,7 @@ Writes are explicit:
 
 ## Troubleshooting
 
-- On first use, macOS may ask for Automation permission to control Notes.
+- On first launch, the server proactively activates Notes so macOS can show the Automation prompt early. Approve it before retrying tool calls.
 - If tools fail, open Notes.app once and let sync finish.
 - If a delete is rejected, either confirm it through a client that supports MCP elicitation or restart the MCP host with `NOTES_MCP_ALLOW_DELETES=1`.
 - If your MCP client caches server metadata, restart the client after upgrading the package.

@@ -4,7 +4,13 @@ import {
   plainTextToAppleHtml,
 } from './content.js';
 import { NotesMcpError } from './errors.js';
-import { runAppleScript, runJxa, type ScriptRuntime } from './jxa.js';
+import {
+  JxaError,
+  runAppleScript,
+  runJxa,
+  type ScriptRunOptions,
+  type ScriptRuntime,
+} from './jxa.js';
 import type {
   AccountInfo,
   CreateNoteInput,
@@ -46,6 +52,26 @@ interface Snapshot {
   folders: SnapshotFolder[];
   notes: SnapshotNote[];
 }
+
+export interface AppleNotesAdapterOptions {
+  enableWarmup?: boolean;
+  warmupTimeoutMs?: number;
+  warmupWaitMs?: number;
+}
+
+const DEFAULT_RUNTIME: ScriptRuntime = { runJxa, runAppleScript };
+const DEFAULT_WARMUP_TIMEOUT_MS = 120_000;
+const DEFAULT_WARMUP_WAIT_MS = 8_000;
+const WARMUP_SCRIPT = `
+  tell application "Notes"
+    activate
+    return count of accounts
+  end tell
+`;
+const PERMISSION_PROMPT_MESSAGE =
+  'Apple Notes automation is still waiting for macOS approval. Bring Notes to the foreground, approve the Automation prompt, then retry.';
+const PERMISSION_DENIED_MESSAGE =
+  'Apple Notes automation was denied by macOS. Allow this MCP host to control Notes in System Settings, then retry.';
 
 function js(value: unknown): string {
   return JSON.stringify(value);
@@ -161,12 +187,121 @@ function snapshotScript(includeBodies: boolean): string {
 }
 
 export class AppleNotesAdapter implements NotesAdapter {
+  private readonly warmupEnabled: boolean;
+  private readonly warmupTimeoutMs: number;
+  private readonly warmupWaitMs: number;
+  private warmupPromise: Promise<void> | null = null;
+
   constructor(
-    private readonly runtime: ScriptRuntime = { runJxa, runAppleScript }
-  ) {}
+    private readonly runtime: ScriptRuntime = DEFAULT_RUNTIME,
+    options: AppleNotesAdapterOptions = {}
+  ) {
+    this.warmupEnabled = options.enableWarmup ?? runtime === DEFAULT_RUNTIME;
+    this.warmupTimeoutMs =
+      options.warmupTimeoutMs ?? DEFAULT_WARMUP_TIMEOUT_MS;
+    this.warmupWaitMs = options.warmupWaitMs ?? DEFAULT_WARMUP_WAIT_MS;
+  }
+
+  warmup(): Promise<void> {
+    if (!this.warmupEnabled) {
+      return Promise.resolve();
+    }
+
+    if (!this.warmupPromise) {
+      const warmupPromise = this.runtime
+        .runAppleScript(WARMUP_SCRIPT, { timeoutMs: this.warmupTimeoutMs })
+        .then(() => undefined)
+        .catch((error) => {
+          this.warmupPromise = null;
+          throw this.normalizeRuntimeError(error);
+        });
+      this.warmupPromise = warmupPromise;
+    }
+
+    return this.warmupPromise;
+  }
+
+  private async waitForWarmup(): Promise<void> {
+    if (!this.warmupEnabled) {
+      return;
+    }
+
+    const warmup = this.warmup();
+    let timer: NodeJS.Timeout | undefined;
+
+    try {
+      await Promise.race([
+        warmup,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            reject(
+              new NotesMcpError('permission_denied', PERMISSION_PROMPT_MESSAGE, {
+                recovery: 'approve_notes_automation',
+              })
+            );
+          }, this.warmupWaitMs);
+        }),
+      ]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    }
+  }
+
+  private normalizeRuntimeError(error: unknown): NotesMcpError | unknown {
+    if (!(error instanceof JxaError)) {
+      return error;
+    }
+
+    const detail = `${error.message}\n${error.stderr ?? ''}`;
+    if (/timed out/i.test(error.message)) {
+      return new NotesMcpError('permission_denied', PERMISSION_PROMPT_MESSAGE, {
+        recovery: 'approve_notes_automation',
+      });
+    }
+
+    if (/not authorized to send apple events|-1743/i.test(detail)) {
+      return new NotesMcpError(
+        'permission_denied',
+        PERMISSION_DENIED_MESSAGE,
+        {
+          recovery: 'enable_notes_automation_in_system_settings',
+        }
+      );
+    }
+
+    return error;
+  }
+
+  private async runJxa<T>(
+    script: string,
+    options?: ScriptRunOptions
+  ): Promise<T> {
+    await this.waitForWarmup();
+
+    try {
+      return await this.runtime.runJxa<T>(script, options);
+    } catch (error) {
+      throw this.normalizeRuntimeError(error);
+    }
+  }
+
+  private async runAppleScript(
+    script: string,
+    options?: ScriptRunOptions
+  ): Promise<string> {
+    await this.waitForWarmup();
+
+    try {
+      return await this.runtime.runAppleScript(script, options);
+    } catch (error) {
+      throw this.normalizeRuntimeError(error);
+    }
+  }
 
   private async snapshot(includeBodies = false): Promise<Snapshot> {
-    return this.runtime.runJxa<Snapshot>(snapshotScript(includeBodies));
+    return this.runJxa<Snapshot>(snapshotScript(includeBodies));
   }
 
   private async resolveFolder(input: {
@@ -348,7 +483,7 @@ export class AppleNotesAdapter implements NotesAdapter {
     ].join('\n');
 
     const folderId = String(
-      await this.runtime.runAppleScript(scriptLines)
+      await this.runAppleScript(scriptLines)
     ).trim();
     const folder = await this.getFolderById(folderId);
     if (!folder) {
@@ -377,7 +512,7 @@ export class AppleNotesAdapter implements NotesAdapter {
         return id of targetFolder
       end tell
     `;
-    await this.runtime.runAppleScript(script);
+    await this.runAppleScript(script);
 
     const parentPath = folder.path.split('/').slice(0, -1).join('/');
     const renamedPath = parentPath ? `${parentPath}/${newName}` : newName;
@@ -394,7 +529,7 @@ export class AppleNotesAdapter implements NotesAdapter {
         delete folder id ${appleScriptString(id)}
       end tell
     `;
-    await this.runtime.runAppleScript(script);
+    await this.runAppleScript(script);
     return true;
   }
 
@@ -494,7 +629,7 @@ export class AppleNotesAdapter implements NotesAdapter {
         return id of newNote
       end tell
     `;
-    const noteId = String(await this.runtime.runAppleScript(script)).trim();
+    const noteId = String(await this.runAppleScript(script)).trim();
     return this.requireNote(noteId, true);
   }
 
@@ -554,7 +689,7 @@ export class AppleNotesAdapter implements NotesAdapter {
     }
     lines.push('  return id of targetNote', 'end tell');
 
-    await this.runtime.runAppleScript(lines.join('\n'));
+    await this.runAppleScript(lines.join('\n'));
     return this.requireNote(input.id, true);
   }
 
@@ -617,7 +752,7 @@ export class AppleNotesAdapter implements NotesAdapter {
       }
     `;
 
-    const result = await this.runtime.runJxa<{ ok: boolean }>(script);
+    const result = await this.runJxa<{ ok: boolean }>(script);
     if (!result.ok) {
       throw new NotesMcpError(
         'unsupported',
@@ -634,7 +769,7 @@ export class AppleNotesAdapter implements NotesAdapter {
         delete note id ${appleScriptString(id)}
       end tell
     `;
-    await this.runtime.runAppleScript(script);
+    await this.runAppleScript(script);
     return true;
   }
 }
